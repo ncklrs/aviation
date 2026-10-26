@@ -1,0 +1,13 @@
+[Unit]
+Description=Overhead: log interesting aircraft to interesting.json
+After=network-online.target readsb.service
+
+[Service]
+ExecStart=/usr/bin/python3 /usr/local/bin/interesting_logger.py --src http://127.0.0.1/tar1090/data/aircraft.json --out /usr/local/share/tar1090/html/interesting.json
+Restart=always
+RestartSec=30
+User=www-data
+Nice=10
+
+[Install]
+WantedBy=multi-user.target
