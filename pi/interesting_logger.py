@@ -105,6 +105,7 @@ def selftest():
         urllib.request.urlopen = real; _sent.clear()
     ok &= good
     print("PASS" if good else "FAIL", "ntfy: 1 alert per aircraft per 6h, Rare type not alerted")
+    ok &= selftest_tracker()
     print("selftest", "OK" if ok else "FAILED")
     return ok
 
@@ -147,7 +148,176 @@ def save(out, log, now):
     with os.fdopen(fd, "w") as fh: json.dump({"now": now, "days": 7, "aircraft": log}, fh, separators=(",", ":"))
     os.chmod(tmp, 0o644); os.replace(tmp, out)
 
-def poll(src, out, max_seen, alerts=None):
+# ---------------- stats / health / heat (all aircraft) ----------------
+import math
+DAYS_KEPT, HEX_CAP, HEAT_CAP, HEAT_RADIUS_KM, HEAT_HALF_LIFE_D = 8, 20000, 30000, 400, 7.0
+
+def dist_km(home, a):
+    if not home or a.get("lat") is None or a.get("lon") is None: return None
+    la1, lo1, la2, lo2 = map(math.radians, (home[0], home[1], a["lat"], a["lon"]))
+    h = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
+    return 2 * 6371.0 * math.asin(min(1, math.sqrt(h)))
+
+def offset_km(home, a):
+    """east/north offset from home in km (flat approximation; only offsets are ever stored)."""
+    if not home or a.get("lat") is None or a.get("lon") is None: return None
+    dy = (a["lat"] - home[0]) * 111.195
+    dx = (a["lon"] - home[1]) * 111.195 * math.cos(math.radians(home[0]))
+    return dx, dy
+
+def load_json(path, default):
+    try:
+        with open(path) as fh: return json.load(fh)
+    except (OSError, ValueError): return default
+
+def save_json(path, obj):
+    d = os.path.dirname(os.path.abspath(path))
+    fd, tmp = tempfile.mkstemp(dir=d, prefix=".ot.")
+    with os.fdopen(fd, "w") as fh: json.dump(obj, fh, separators=(",", ":"))
+    os.chmod(tmp, 0o644); os.replace(tmp, path)
+
+class Tracker:
+    """Rolling per-day stats for every aircraft, receiver health, and a decaying relative heat grid."""
+    def __init__(self, outdir, home=None, quiet_min=15, min_rate=1.0, cell_km=1.0, notify=None, persist=True):
+        self.outdir, self.home, self.quiet_s, self.min_rate, self.cell = outdir, home, quiet_min * 60, min_rate, cell_km
+        self.notify, self.persist = notify, persist
+        self.state_p = os.path.join(outdir, ".stats-state.json")
+        st = load_json(self.state_p, {}) if persist else {}
+        self.days = st.get("days", {})                       # day -> {hex:[...], hours, types, far, msgs}
+        self.samples = st.get("samples", [])                 # [t, msgs/s, aircraft] last 24h
+        self.health = st.get("health", {"state": "ok", "since": None, "alerted": False})
+        self.heat = st.get("heat", {})                       # "dx,dy" -> weight (km cells, offsets from home)
+        self.heat_t = st.get("heat_t", 0)
+        self.last_msgs = None
+
+    def update(self, data, now):
+        ac = data.get("aircraft", [])
+        live = [a for a in ac if (a.get("seen") or 0) <= 60]
+        k = time.strftime("%Y-%m-%d", time.localtime(now)); hr = time.localtime(now).tm_hour
+        D = self.days.setdefault(k, {"hex": [], "hours": [0] * 24, "types": {}, "far": None})
+        seen = set(D["hex"])
+        for a in live:
+            hx = a.get("hex")
+            if not hx: continue
+            if hx not in seen and len(D["hex"]) < HEX_CAP:
+                seen.add(hx); D["hex"].append(hx); D["hours"][hr] += 1
+                t = (a.get("t") or "").upper()
+                if t: D["types"][t] = D["types"].get(t, 0) + 1
+            if (a.get("seen_pos") or 0) <= 60:
+                d = dist_km(self.home, a)
+                if d is not None and d < 700 and (not D["far"] or d > D["far"]["km"]):
+                    D["far"] = {"km": round(d, 1), "id": (a.get("flight") or "").strip() or a.get("r") or hx, "t": a.get("t") or ""}
+                o = offset_km(self.home, a)
+                if o and math.hypot(*o) <= HEAT_RADIUS_KM:
+                    c = f"{int(math.floor(o[0] / self.cell))},{int(math.floor(o[1] / self.cell))}"
+                    self.heat[c] = self.heat.get(c, 0) + 1
+        for old in sorted(self.days)[:-DAYS_KEPT]: del self.days[old]
+        # message rate from readsb's cumulative counter
+        msgs, rate = data.get("messages"), None
+        if isinstance(msgs, (int, float)):
+            if self.last_msgs and now > self.last_msgs[0] and msgs >= self.last_msgs[1]:
+                rate = (msgs - self.last_msgs[1]) / (now - self.last_msgs[0])
+            self.last_msgs = (now, msgs)
+        if rate is not None and (not self.samples or now - self.samples[-1][0] >= 290):
+            self.samples.append([int(now), round(rate, 1), len(live)])
+        self.samples = [s for s in self.samples if s[0] > now - 86400][-300:]
+        self._health(now, rate, len(live))
+        self._decay(now)
+
+    def _health(self, now, rate, n):
+        h = self.health
+        quiet = n == 0 or (rate is not None and rate < self.min_rate)
+        h.update({"rate": None if rate is None else round(rate, 1), "aircraft": n, "updated": int(now)})
+        if quiet:
+            h.setdefault("quiet_from", now)
+            if now - h["quiet_from"] >= self.quiet_s and h.get("state") != "quiet":
+                h["state"], h["since"] = "quiet", int(h["quiet_from"])
+                if self.notify: self.notify("Receiver quiet", f"{n} aircraft, {h['rate']} msg/s for {int((now - h['quiet_from']) // 60)} min")
+        else:
+            h.pop("quiet_from", None)
+            if h.get("state") == "quiet":
+                h["state"], h["since"] = "ok", int(now)
+                if self.notify: self.notify("Receiver recovered", f"{n} aircraft, {h['rate']} msg/s")
+            if h.get("since") is None: h["since"] = int(now)
+
+    def _decay(self, now):
+        if not self.heat_t: self.heat_t = now
+        dt = now - self.heat_t
+        if dt < 3600: return
+        f = 0.5 ** (dt / 86400 / HEAT_HALF_LIFE_D)
+        self.heat = {c: round(w * f, 2) for c, w in self.heat.items() if w * f >= 0.05}
+        if len(self.heat) > HEAT_CAP:
+            self.heat = dict(sorted(self.heat.items(), key=lambda kv: -kv[1])[:HEAT_CAP])
+        self.heat_t = now
+
+    def stats_doc(self, now):
+        days = {}
+        for k, D in sorted(self.days.items()):
+            days[k] = {"unique": len(D["hex"]), "hours": D["hours"], "far": D["far"],
+                       "types": dict(sorted(D["types"].items(), key=lambda kv: -kv[1])[:40])}
+        week = set()
+        for k in sorted(self.days)[-7:]: week.update(self.days[k]["hex"])
+        return {"now": int(now), "version": 1, "dist_unit": "km", "days": days, "week": {"unique": len(week)},
+                "samples": self.samples, "health": {k: v for k, v in self.health.items() if k != "alerted"}}
+
+    def heat_doc(self, now):
+        return {"now": int(now), "cell_km": self.cell, "half_life_days": HEAT_HALF_LIFE_D,
+                "note": "east,north cell offsets from the receiver; no absolute coordinates",
+                "cells": [[int(c.split(",")[0]), int(c.split(",")[1]), w] for c, w in self.heat.items()]}
+
+    def save(self, now):
+        if not self.persist: return
+        save_json(os.path.join(self.outdir, "stats.json"), self.stats_doc(now))
+        save_json(os.path.join(self.outdir, "heat.json"), self.heat_doc(now))
+        save_json(self.state_p, {"days": self.days, "samples": self.samples, "health": self.health,
+                                 "heat": self.heat, "heat_t": self.heat_t})
+
+def receiver_home(src):
+    """lat/lon from receiver.json next to aircraft.json (never written anywhere by this script)."""
+    try:
+        r = fetch(re.sub(r"aircraft\.json(\?.*)?$", "receiver.json", src))
+        if r.get("lat") is not None and r.get("lon") is not None: return (float(r["lat"]), float(r["lon"]))
+    except Exception: pass
+    return None
+
+def ntfy_text(server, topic, title, body, prio="default"):
+    if not topic: return False
+    req = urllib.request.Request(server.rstrip("/") + "/" + urllib.parse.quote(topic), data=body.encode(), method="POST",
+                                 headers={"Title": title, "Priority": prio, "Tags": "satellite"})
+    try: urllib.request.urlopen(req, timeout=10).close(); return True
+    except Exception as ex: print(f"ntfy failed: {ex}", file=sys.stderr); return False
+
+def selftest_tracker():
+    ok = True; sent = []
+    home = (40.0, -100.0)                                 # arbitrary test point
+    T = Tracker("/nonexistent", home=home, quiet_min=15, min_rate=1.0, notify=lambda t, b: sent.append(t), persist=False)
+    t0 = 1_800_000_000
+    mk = lambda hx, dlat, t="B738", fl="TST1": {"hex": hx, "lat": 40.0 + dlat, "lon": -100.0, "t": t, "flight": fl, "seen": 1, "seen_pos": 1}
+    T.update({"messages": 0, "aircraft": [mk("a1", 0.5), mk("a2", 1.0, "C172", "N1")]}, t0)
+    T.update({"messages": 6000, "aircraft": [mk("a1", 0.5), mk("a2", 1.0, "C172", "N1"), mk("a3", 2.0, "B738", "FAR9")]}, t0 + 30)
+    s = T.stats_doc(t0 + 30); d = list(s["days"].values())[-1]
+    g = d["unique"] == 3 and sum(d["hours"]) == 3 and d["types"].get("B738") == 2 and d["far"]["id"] == "FAR9" \
+        and abs(d["far"]["km"] - 222.4) < 1 and s["week"]["unique"] == 3 and s["samples"][-1][1] == 200.0
+    print("PASS" if g else "FAIL", "stats: unique/hourly/types/farthest/msg-rate", d["unique"], d["far"], s["samples"][-1:]); ok &= g
+    # health: 16 min with zero aircraft -> one 'quiet', then one 'recovered'
+    m = 6000
+    for i in range(1, 40):
+        m += 0; T.update({"messages": m, "aircraft": []}, t0 + 30 + i * 30)
+    q = T.health["state"] == "quiet" and sent == ["Receiver quiet"]
+    for i in range(3):
+        m += 3000; T.update({"messages": m, "aircraft": [mk("a1", 0.5)]}, t0 + 1300 + i * 30)
+    g = q and T.health["state"] == "ok" and sent == ["Receiver quiet", "Receiver recovered"]
+    print("PASS" if g else "FAIL", "health: one quiet alert after 15 min, one recovered", sent); ok &= g
+    # heat: only relative integer cells, decays
+    h = T.heat_doc(t0); cells = {(c[0], c[1]) for c in h["cells"]}
+    g1 = (0, 55) in cells and all(isinstance(c[0], int) and abs(c[0]) <= HEAT_RADIUS_KM for c in h["cells"]) \
+        and "lat" not in json.dumps(h)
+    w0 = sum(c[2] for c in h["cells"]); T._decay(T.heat_t + 7 * 86400); w1 = sum(T.heat.values())
+    g = g1 and abs(w1 - w0 / 2) < 0.6
+    print("PASS" if g else "FAIL", "heat: relative 1 km cells, no coordinates, 7-day half-life", sorted(cells)[:3], w0, w1); ok &= g
+    return ok
+
+def poll(src, out, max_seen, alerts=None, tracker=None):
     data = fetch(src); now = data.get("now") or time.time()
     day = time.strftime("%Y-%m-%d", time.gmtime(now))
     log = [e for e in load(out) if e.get("last", 0) > now - 7 * 86400]
@@ -170,6 +340,9 @@ def poll(src, out, max_seen, alerts=None):
         e["why"] = sort_why(e["why"] + w)
         if alerts: ntfy(alerts["server"], alerts["topic"], a, e["why"], now, alerts["tags"])
     save(out, log, now)
+    if tracker:
+        try: tracker.update(data, now); tracker.save(now)
+        except Exception as ex: print(f"stats failed: {ex}", file=sys.stderr)
     return len(log)
 
 def main():
@@ -184,13 +357,26 @@ def main():
     p.add_argument("--ntfy-server", default=os.environ.get("NTFY_SERVER") or "https://ntfy.sh")
     p.add_argument("--ntfy-tags", default=os.environ.get("NTFY_TAGS") or ALERT_DEFAULT,
                    help="comma list of 'why' prefixes that alert (default: %(default)s)")
+    p.add_argument("--no-stats", action="store_true", help="don't write stats.json / heat.json")
+    p.add_argument("--quiet-minutes", type=float, default=float(os.environ.get("QUIET_MINUTES") or 15),
+                   help="alert 'receiver quiet' after this long with 0 aircraft or a low message rate")
+    p.add_argument("--min-rate", type=float, default=float(os.environ.get("MIN_MSG_RATE") or 1.0),
+                   help="messages/s below which the receiver counts as quiet")
+    p.add_argument("--heat-cell-km", type=float, default=1.0)
     p.add_argument("--selftest", action="store_true", help="run built-in checks and exit")
     o = p.parse_args()
     if o.selftest: sys.exit(0 if selftest() else 1)
     alerts = {"topic": o.ntfy_topic.strip(), "server": o.ntfy_server,
               "tags": [t.strip() for t in o.ntfy_tags.split(",") if t.strip()]} if o.ntfy_topic.strip() else None
+    tracker = None
+    if not o.no_stats:
+        topic = o.ntfy_topic.strip()
+        notify = (lambda t, b: ntfy_text(o.ntfy_server, topic, "Overhead: " + t, b)) if topic else None
+        tracker = Tracker(os.path.dirname(os.path.abspath(o.out)), home=receiver_home(o.src), quiet_min=o.quiet_minutes,
+                          min_rate=o.min_rate, cell_km=o.heat_cell_km, notify=notify)
     while True:
-        try: n = poll(o.src, o.out, o.max_seen, alerts)
+        if tracker and tracker.home is None: tracker.home = receiver_home(o.src)
+        try: n = poll(o.src, o.out, o.max_seen, alerts, tracker)
         except Exception as ex: print(f"poll failed: {ex}", file=sys.stderr); n = None
         if o.once: sys.exit(0 if n is not None else 1)
         time.sleep(o.interval)

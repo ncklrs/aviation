@@ -1,0 +1,10 @@
+[Unit]
+Description=Overhead weekly digest (ntfy)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=www-data
+EnvironmentFile=-/etc/default/interesting-logger
+ExecStart=/usr/bin/python3 /usr/local/bin/overhead-digest.py --dir /usr/local/share/tar1090/html/ot

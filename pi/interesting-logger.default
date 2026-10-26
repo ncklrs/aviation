@@ -4,3 +4,7 @@
 NTFY_TOPIC=
 #NTFY_SERVER=https://ntfy.sh
 #NTFY_TAGS=Emergency,Hijack,Radio,Medevac,Military,Helicopter
+# Receiver health: one "receiver quiet" alert after QUIET_MINUTES with 0 aircraft or < MIN_MSG_RATE msg/s, one "recovered".
+#QUIET_MINUTES=15
+#MIN_MSG_RATE=1
+# The weekly digest (overhead-digest.timer, Sundays 09:00) posts to the same NTFY_TOPIC.

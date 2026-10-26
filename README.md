@@ -4,6 +4,8 @@
 
 A single-file web page for a tar1090/readsb receiver that shows the aircraft above you as clean side-profile line drawings, sized for iPads and e-ink panels.
 
+![release](https://img.shields.io/github/v/release/ncklrs/aviation?label=release) ![license](https://img.shields.io/badge/license-MIT-black) ![tar1090](https://img.shields.io/badge/works%20with-tar1090-black)
+
 ## Features
 
 - Highest aircraft drawn large with callsign, airline, type, **route** (e.g. `EWR → TLV`), altitude, speed, distance and heading; the two nearest below it.
@@ -63,6 +65,28 @@ Maintainers: run `tools/release.sh` before every commit that touches those files
 
 The logger tags **Medevac** from public, generic signals only: the tar1090 db operator (`ownOp`) naming an air-ambulance operator or hospital program (Air Methods, PHI, Metro Aviation, Med-Trans, Life Flight, CareFlight, Survival Flight, MedFlight, Air Evac, "medical", "hospital"…), or a rotorcraft (category A7 or helicopter type) using an air-ambulance callsign pattern (`LN#`, `LIFE`, `MERCY`, `CARE`, `STAT#`, `MEDEVAC`, `ANGEL`, …). Military aircraft (dbFlags) and `RCH` "Reach" callsigns stay Military. `python3 pi/interesting_logger.py --selftest` checks this.
 
+## Logger stats, health and heat map
+
+With the Pi logger running, it also writes, next to `interesting.json` in `html/ot/`:
+
+- `stats.json` — every aircraft, not just the interesting ones: unique aircraft per day (8 days kept, 7-day unique total), new aircraft per hour, farthest contact with type and callsign, a top-types tally, and a message-rate sample every 5 minutes for 24 h. The stats view uses it when present and falls back to the browser's own log.
+- `health` inside `stats.json` — after `QUIET_MINUTES` (default 15) with 0 aircraft or under `MIN_MSG_RATE` msg/s (default 1), the logger sends one "receiver quiet" ntfy alert, then one "recovered". The page footer shows a red dot when the receiver is quiet or the logger output is more than 10 minutes old.
+- `heat.json` — a coarse 1 km grid of **offsets from the receiver** (east/north cell numbers, never coordinates), fading with a 7-day half-life, capped at 30,000 cells within 400 km. `?view=heat` shows it as dot density (fine on e-ink); `?heat=1` adds it to the rotation after stats. `?heatKm=120` sets the radius.
+
+All three are written atomically (temp file + rename) and stay bounded in size. `--no-stats` turns them off.
+
+## Weekly digest
+
+`overhead-digest.timer` runs Sundays at 09:00 and posts a short summary (unique aircraft, busiest day, farthest contact, top types, interesting sightings) to the same `NTFY_TOPIC`. With no topic it does nothing. Try it: `python3 /usr/local/bin/overhead-digest.py --dry-run`.
+
+## Airframe photos
+
+The featured live card shows a small photo from [Planespotters.net](https://www.planespotters.net/photo/api) with the photographer credit and a link to the photo page, per their API terms (lookups cached up to 24 h, images never stored). Off in e-ink mode; `?photos=0` turns it off.
+
+## Sound
+
+`?sound=1` plays a short synthesized chime (no audio files) when an Emergency, Medevac, Military or rotorcraft contact is in view, at most once per aircraft per 30 minutes. Browsers, and iOS especially, keep audio locked until you tap the page, so a "tap to enable sound" button shows until then. Off by default.
+
 ## Notes
 
 `index.html` is one self-contained file (no external assets). Thin black strokes on white,
@@ -93,7 +117,10 @@ Previews: `preview-800x480.png`, `preview-1200x1600.png`, `preview-1872x1404.png
 | `map=0` / `mapNm=N` / `overpass=URL` | on / 25 / public | Background OSM line map |
 | `cycle=N` | 120 | Seconds per live/weekly cycle; `cycle=0` never shows the weekly page |
 | `weekSecs=N` | 20 | Seconds the weekly page shows in each cycle |
-| `view=week` / `view=live` | | Pin one view (screenshots) |
+| `view=week` / `live` / `stats` / `heat` | | Pin one view (screenshots) |
+| `heat=1` / `heatKm=N` | off / 120 | Add the heat map to the rotation (needs `cycle` ≥ 4 × `weekSecs`) / its radius in km |
+| `photos=0` | on | Hide the Planespotters.net photo (always off with `eink=1`) |
+| `sound=1` | off | Chime for Emergency / Medevac / Military / rotorcraft, once per aircraft per 30 min |
 | `interesting=URL` | auto | Logger output location (tries `data/interesting.json`, then `interesting.json` next to the page) |
 | `units=aero\|imperial\|metric` | `aero` | aero: kt / ft (FL above `upHighFt`) / nm · imperial: mph / ft / mi · metric: km/h / m / km |
 | `eink=1` | off | Strict 1-bit black and white, no motion, thicker strokes; refresh defaults to 60 s |

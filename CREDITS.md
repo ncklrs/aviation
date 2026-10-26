@@ -33,6 +33,14 @@ Origin and destination airports are looked up at runtime from the free [adsbdb.c
 
 Sunrise/sunset for night mode use the standard NOAA/Wikipedia "sunrise equation" approximation, computed locally.
 
+## Airframe photos
+
+The small photo on the featured live card comes at runtime from the [Planespotters.net](https://www.planespotters.net/) public photo API (`/pub/photos/hex/{hex}`), under its [Photo API terms](https://www.planespotters.net/photo/api): the photographer is credited next to every photo, the thumbnail links to the photo's page on Planespotters.net, URLs are used unchanged, API responses are cached for at most 24 hours, and images are never stored, proxied or re-hosted. Photos stay © their photographers. Nothing is bundled; demo mode shows a drawn placeholder. Turn it off with `?photos=0`; it is always off in e-ink mode (no clickable link-back there).
+
+## Sound
+
+The optional chime (`?sound=1`) is synthesized with WebAudio; no audio files are used.
+
 ## Push notifications
 
 Optional alerts are sent through [ntfy](https://ntfy.sh) (or your own ntfy server) only when you configure a topic.

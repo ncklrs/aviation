@@ -5,6 +5,7 @@
 #   REPO_RAW=https://raw.githubusercontent.com/ncklrs/aviation/main
 #   PAGE_DIR=/usr/local/share/tar1090/html
 #   LOGGER=/usr/local/bin/interesting_logger.py
+# Also keeps the weekly digest (script + timer) and this updater's own units current.
 set -eu
 [ -r /etc/default/overhead-update ] && . /etc/default/overhead-update
 REPO_RAW=${REPO_RAW:-https://raw.githubusercontent.com/ncklrs/aviation/main}
@@ -42,5 +43,23 @@ if update pi/interesting_logger.py "$LOGGER"; then
   if python3 "$LOGGER" --selftest >/dev/null; then RESTART=1
   else log "new logger failed selftest, restoring backup"; mv -f "$LOGGER.bak" "$LOGGER"; fi
 fi
+
+# weekly digest (script + units) and the updater's own units/script
+if update pi/overhead-digest.py /usr/local/bin/overhead-digest.py; then
+  chmod 0755 /usr/local/bin/overhead-digest.py
+  python3 /usr/local/bin/overhead-digest.py --dry-run --dir "$PAGE_DIR/ot" --env /dev/null >/dev/null \
+    || { log "new digest failed dry-run, restoring backup"; [ -f /usr/local/bin/overhead-digest.py.bak ] && mv -f /usr/local/bin/overhead-digest.py.bak /usr/local/bin/overhead-digest.py; }
+fi
+RELOAD=
+for u in overhead-digest.service overhead-digest.timer overhead-update.service overhead-update.timer; do
+  if update "pi/$u" "/etc/systemd/system/$u"; then
+    [ "$u" = overhead-digest.service ] && [ "$PAGE_DIR" != /usr/local/share/tar1090/html ] && sed -i "s|/usr/local/share/tar1090/html/ot|$PAGE_DIR/ot|" "/etc/systemd/system/$u"
+    RELOAD=1; fi
+done
+[ -n "$RELOAD" ] && systemctl daemon-reload
+[ -f /etc/systemd/system/overhead-digest.timer ] && ! systemctl is-enabled -q overhead-digest.timer 2>/dev/null && systemctl enable --now overhead-digest.timer && log "digest timer enabled"
+# self-update last: the running sh keeps reading the old inode, the new file is used next night
+update pi/overhead-update.sh /usr/local/bin/overhead-update.sh && chmod 0755 /usr/local/bin/overhead-update.sh || true
+
 [ -n "$RESTART" ] && { systemctl try-restart interesting-logger.service && log "logger restarted" || log "logger restart failed"; }
 exit 0

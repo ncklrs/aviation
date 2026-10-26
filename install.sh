@@ -23,6 +23,11 @@ if [ -z "${NO_LOGGER:-}" ]; then
   install -d -o www-data -m 0755 "$PAGE_DIR/ot"
   [ -e "$PAGE_DIR/ot/interesting.json" ] || install -o www-data -m 0644 /dev/null "$PAGE_DIR/ot/interesting.json"
   [ -L "$PAGE_DIR/interesting.json" ] || { rm -f "$PAGE_DIR/interesting.json"; ln -s ot/interesting.json "$PAGE_DIR/interesting.json"; }
+  echo "== weekly digest (posts only if NTFY_TOPIC is set)"
+  get pi/overhead-digest.py /usr/local/bin/overhead-digest.py; chmod 0755 /usr/local/bin/overhead-digest.py
+  get pi/overhead-digest.service /etc/systemd/system/overhead-digest.service
+  get pi/overhead-digest.timer /etc/systemd/system/overhead-digest.timer
+  [ "$PAGE_DIR" = /usr/local/share/tar1090/html ] || sed -i "s|/usr/local/share/tar1090/html/ot|$PAGE_DIR/ot|" /etc/systemd/system/overhead-digest.service
 fi
 if [ -z "${NO_TIMER:-}" ]; then
   echo "== nightly updater"
@@ -32,7 +37,7 @@ if [ -z "${NO_TIMER:-}" ]; then
   [ -f /etc/default/overhead-update ] || printf 'REPO_RAW=%s\nPAGE_DIR=%s\n' "$REPO_RAW" "$PAGE_DIR" > /etc/default/overhead-update
 fi
 systemctl daemon-reload
-[ -z "${NO_LOGGER:-}" ] && systemctl enable --now interesting-logger.service
+[ -z "${NO_LOGGER:-}" ] && systemctl enable --now interesting-logger.service overhead-digest.timer
 [ -z "${NO_TIMER:-}" ] && systemctl enable --now overhead-update.timer
 IP=$(hostname -I 2>/dev/null | cut -d' ' -f1)
 echo "done: open http://${IP:-<pi>}/tar1090/overhead.html"
