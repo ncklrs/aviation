@@ -1,4 +1,4 @@
-# Overhead: ADS-B line-drawing page for Tesserae
+# Overhead: ADS-B line-drawing page
 
 ![Overhead demo](docs/demo.gif)
 
@@ -63,7 +63,7 @@ Maintainers: run `tools/release.sh` before every commit that touches those files
 
 The logger tags **Medevac** from public, generic signals only: the tar1090 db operator (`ownOp`) naming an air-ambulance operator or hospital program (Air Methods, PHI, Metro Aviation, Med-Trans, Life Flight, CareFlight, Survival Flight, MedFlight, Air Evac, "medical", "hospital"…), or a rotorcraft (category A7 or helicopter type) using an air-ambulance callsign pattern (`LN#`, `LIFE`, `MERCY`, `CARE`, `STAT#`, `MEDEVAC`, `ANGEL`, …). Military aircraft (dbFlags) and `RCH` "Reach" callsigns stay Military. `python3 pi/interesting_logger.py --selftest` checks this.
 
-## Tesserae notes
+## Notes
 
 `index.html` is one self-contained file (no external assets). Thin black strokes on white,
 legible on B/W or 16-grey e-ink at 800x480, 1200x1600 (portrait stacks) and 1872x1404.
@@ -74,30 +74,9 @@ legible on B/W or 16-grey e-ink at 800x480, 1200x1600 (portrait stacks) and 1872
 - Config constants sit at the top of the `<script>` block: `AIRCRAFT_URL` (default `http://pi.local:8080/data/aircraft.json`), `HIGH_FT`, `MAX_PATTERN`, `MAX_SEEN_S`, and an optional `HOME`. `receiver.json` is read from the same folder to get the lat/lon used for distance.
 - URL params: `?demo=1` (uses the fake `sample-aircraft.json` / `sample-receiver.json`, with an inline copy as fallback), `?url=…`, `?receiver=…`, `?refresh=SECONDS` (standalone only).
 
-## Important: Tesserae can't fetch from your Pi directly
-I checked this against the dmellok/tesserae source:
-- A **Code** element runs in a sandboxed iframe with **no fetch/XHR**. Data is fetched server-side and injected as `ctx.data[name]`.
-- The generic **REST / JSON** source (`rest_service`) and raw-URL code sources go through `app/net_guard`, which **blocks loopback and private-LAN hosts**. So `http://pi.local:8080/...` or `192.168.x.x` will come back as `{"error": ...}`.
-- The **Webpage** widget renders a URL with headless Chromium using operator trust, so **LAN URLs are allowed**.
-
-### Option A (recommended): host the page on the Pi and use the Webpage widget
-1. Copy the file to the Pi next to tar1090/dump1090's web root, for example
-   `sudo cp index.html /usr/share/tar1090/html/overhead.html` (path varies; for readsb + lighttpd it's often `/usr/local/share/tar1090/html/`).
-   Because it's served from the same origin as `data/aircraft.json`, there's **no CORS issue**. Set
-   `AIRCRAFT_URL = 'data/aircraft.json'` (relative) if you like.
-2. In Tesserae, add a **Webpage** widget at full size with URL `http://pi.local:8080/overhead.html` (use the Pi's IP if
-   the Tesserae container can't resolve mDNS `.local`, which is common in Docker). Raise the settle delay to about 2 s so the fetch finishes before capture.
-
-### Option B: paste it as a Code element
-Paste the CSS into the element's css field, the body markup into html, and the script into js. Add sources named
-`aircraft` (and optionally `receiver`). The script picks up `window.ctx.data.aircraft` / `.receiver` automatically.
-This only works if the JSON is reachable at a **public** URL (because the LAN is blocked), for example through a Cloudflare Tunnel
-or Tailscale Funnel exposing just `/data/*.json`. If the guard refuses, the page shows "Receiver unreachable" with the error.
-Also check whether `ctx` is defined at script run time in your Tesserae version. If not, wrap `main()` in whatever ready hook the editor shows.
-
 ## Caveats
 - **Refresh**: e-ink renders once per device refresh. A refresh of 2 to 5 minutes is reasonable, so planes will be a snapshot, not live. Each refresh costs battery.
-- **CORS**: if you open the page from a different origin (for example `file://` or another host), the browser needs the Pi to send `Access-Control-Allow-Origin`. Option A avoids this.
+- **CORS**: if you open the page from a different origin (for example `file://` or another host), the browser needs the Pi to send `Access-Control-Allow-Origin`. Serving the page from the Pi avoids this.
 - `category` is often missing for small GA transponders. Those default to the Cessna drawing, or the airliner if they're above 18,000 ft.
 - `receiver.json` only has lat/lon if you set a location in readsb/dump1090. Otherwise set `HOME`, or distances show "—".
 - The demo data is entirely fake (DEMO101, N0FAKE1, and so on).

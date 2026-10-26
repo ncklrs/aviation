@@ -7,7 +7,7 @@ set -eu
 REPO_RAW=${REPO_RAW:-https://raw.githubusercontent.com/ncklrs/aviation/main}
 PAGE_DIR=${PAGE_DIR:-/usr/local/share/tar1090/html}
 [ -d "$PAGE_DIR" ] || { echo "tar1090 html dir not found: $PAGE_DIR (set PAGE_DIR=...)" >&2; exit 1; }
-SRC=$(cd "$(dirname "$0")" 2>/dev/null && pwd || echo /nonexistent)
+SRC=$(cd "$(dirname "$0")" 2>/dev/null && pwd || echo /nonexistent); [ -f "$SRC/pi/interesting_logger.py" ] || SRC=/nonexistent
 get(){ if [ -f "$SRC/$1" ]; then cp "$SRC/$1" "$2"; else curl -fsSL "$REPO_RAW/$1" -o "$2"; fi; }
 
 echo "== page"; get overhead.html "$PAGE_DIR/overhead.html"; chmod 0644 "$PAGE_DIR/overhead.html"
