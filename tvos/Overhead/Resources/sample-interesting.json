@@ -1,0 +1,131 @@
+{
+ "now": 1793019600,
+ "aircraft": [
+  {
+   "hex": "ae0001",
+   "flight": "RCH431",
+   "r": "05-5140",
+   "t": "C17",
+   "desc": "Boeing C-17A Globemaster III",
+   "ownOp": "United States Air Force",
+   "dbFlags": 1,
+   "why": [
+    "Military",
+    "Widebody"
+   ],
+   "last": 1793001600,
+   "maxAlt": 31000,
+   "category": "A5",
+   "day": "2026-10-26",
+   "first": 1793001000
+  },
+  {
+   "hex": "fa0101",
+   "flight": "N0FAKE7",
+   "t": "BE36",
+   "desc": "Beech A36 Bonanza",
+   "why": [
+    "Emergency 7700"
+   ],
+   "last": 1792836000,
+   "maxAlt": 4500,
+   "category": "A1",
+   "day": "2026-10-24",
+   "first": 1792835400
+  },
+  {
+   "hex": "ae0002",
+   "flight": "PAT21",
+   "t": "H60",
+   "desc": "Sikorsky UH-60 Black Hawk",
+   "ownOp": "United States Army",
+   "dbFlags": 1,
+   "why": [
+    "Military",
+    "Helicopter"
+   ],
+   "last": 1792926000,
+   "maxAlt": 1200,
+   "category": "A7",
+   "day": "2026-10-25",
+   "first": 1792925400
+  },
+  {
+   "hex": "fa0102",
+   "flight": "GTI8203",
+   "r": "N0FAKE8",
+   "t": "B748",
+   "desc": "Boeing 747-8F",
+   "ownOp": "Atlas Air",
+   "why": [
+    "Four-engine"
+   ],
+   "last": 1792760400,
+   "maxAlt": 37000,
+   "category": "A5",
+   "day": "2026-10-23",
+   "first": 1792759800
+  },
+  {
+   "hex": "fa0103",
+   "flight": "N0FAKE9",
+   "t": "DHC2",
+   "desc": "de Havilland Canada DHC-2 Beaver",
+   "why": [
+    "Rare type"
+   ],
+   "last": 1792670400,
+   "maxAlt": 2500,
+   "category": "A1",
+   "day": "2026-10-22",
+   "first": 1792669800
+  },
+  {
+   "hex": "fa0104",
+   "flight": "N0FAKE10",
+   "t": "GLF6",
+   "desc": "Gulfstream G650",
+   "dbFlags": 4,
+   "why": [
+    "PIA",
+    "Very high"
+   ],
+   "last": 1792900800,
+   "maxAlt": 51000,
+   "category": "A2",
+   "day": "2026-10-25",
+   "first": 1792900200
+  },
+  {
+   "hex": "fa0105",
+   "flight": "LN2",
+   "t": "EC35",
+   "desc": "Airbus Helicopters H135",
+   "ownOp": "Demo Air Medical",
+   "why": [
+    "Medevac",
+    "Helicopter"
+   ],
+   "last": 1793008800,
+   "maxAlt": 1500,
+   "category": "A7",
+   "day": "2026-10-26",
+   "first": 1793008200
+  },
+  {
+   "hex": "fa0106",
+   "flight": "N0FAKE11",
+   "t": "P51",
+   "desc": "North American P-51 Mustang",
+   "why": [
+    "Rare type"
+   ],
+   "last": 1792501200,
+   "maxAlt": 6500,
+   "category": "A1",
+   "day": "2026-10-20",
+   "first": 1792500600
+  }
+ ],
+ "_note": "FAKE demo data"
+}
