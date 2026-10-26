@@ -17,7 +17,8 @@ B3XM A318 A319 A320 A321 A19N A20N A21N BCS1 BCS3 B752 B753 A332 A333 A339 A359 
 B773 B77W B788 B789 B78X""".split())
 WIDE = re.compile(r"^(A3[3-5]|A38|B7[4678]|B77|B78|MD11|DC10|IL96|A124|C5M|C17$)")
 QUAD = re.compile(r"^(A34|A38|B74|A124|C5M|IL96|B52|K35R|E3)")
-HELI = re.compile(r"^(R22|R44|R66|EC|H[0-9]|AS[0-9]|B06|B407|B412|B429|A109|A119|A139|A169|S76|S92|UH|AH|CH|MH|H60|H47|H64|BK17|MD[56]|EN28|EN48)")
+HELI = re.compile(r"^(R22|R44|R66|EC|H[0-9]|AS[0-9]|B06|B407|B412|B429|A109|A119|A139|A169|S76|S92|UH|AH|CH|MH|H60|H47|H64|BK17|MD[56]|EN28|EN48|V22)")
+MEDEVAC = re.compile(r"medevac|medical|life ?flight|air ?methods|careflight|med ?flight|angel ?flight|\bphi\b|air ?evac|^\s*(PHM|AMF|LFL|EVAC|MEDIC)", re.I)
 SQ = {"7500": "Hijack 7500", "7600": "Radio failure 7600", "7700": "Emergency 7700"}
 
 def alt(a):
@@ -35,6 +36,7 @@ def why(a):
     if f & 4: w.append("PIA")
     if f & 8: w.append("LADD")
     if a.get("category") == "A7" or (t and HELI.match(t)): w.append("Helicopter")
+    if MEDEVAC.search(" ".join(str(a.get(k) or "") for k in ("flight", "ownOp", "desc"))): w.append("Medevac")
     if QUAD.match(t): w.append("Four-engine")
     elif WIDE.match(t): w.append("Widebody")
     if alt(a) > 45000: w.append("Very high")

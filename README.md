@@ -50,9 +50,49 @@ Previews: `preview-800x480.png`, `preview-1200x1600.png`, `preview-1872x1404.png
 | `cycle=N` | 120 | Seconds per live/weekly cycle; `cycle=0` never shows the weekly page |
 | `weekSecs=N` | 20 | Seconds the weekly page shows in each cycle |
 | `view=week` / `view=live` | | Pin one view (screenshots) |
-| `interesting=URL` | `data/interesting.json` | Logger output location |
+| `interesting=URL` | auto | Logger output location (tries `data/interesting.json`, then `interesting.json` next to the page) |
+| `units=aero\|imperial\|metric` | `aero` | aero: kt / ft (FL above `upHighFt`) / nm · imperial: mph / ft / mi · metric: km/h / m / km |
+| `eink=1` | off | Strict 1-bit black and white, no motion, thicker strokes; refresh defaults to 60 s |
+| `recent=0` | on | Hide the "Recently seen" strip |
+| `url=URL` / `receiver=URL` | `data/aircraft.json` / alongside | Receiver data sources |
+| `upHighFt=N` | 18000 | "Up high" threshold |
 
 The cycle is clock-based (`now mod cycle < weekSecs`), so render-once snapshots also land on the weekly page for the same share of runs.
+
+## Configuration
+
+No code edits needed. Settings resolve in this order: **URL param → `window.OVERHEAD_CONFIG` → constants at the top of the script**.
+
+Option 1, URL params (see table above), e.g. `overhead.html?units=metric&eink=1&refresh=60`.
+
+Option 2, a config block. Put this in a `<script>` placed *before* the main script (or in a `config.js` you include there):
+
+```html
+<script>
+window.OVERHEAD_CONFIG = {
+  aircraftUrl:    'data/aircraft.json',   // readsb/tar1090 aircraft.json
+  receiverUrl:    null,                   // default: receiver.json next to aircraft.json
+  interestingUrl: null,                   // default: auto (see below)
+  home:           null,                   // {lat: 0.0, lon: 0.0}; null = use receiver.json position
+  units:          'aero',                 // 'aero' | 'imperial' | 'metric'
+  eink:           false,
+  refresh:        0,                      // seconds; 0 = render once (eink defaults to 60)
+  recent:         true                    // "Recently seen" strip
+};
+</script>
+```
+
+Home position: if `home` is null the page uses the lat/lon in `receiver.json`. Nothing about your location is stored in the code. `?lat=&lon=` override both. Without any position, distances show "—" and the map is skipped.
+
+Try it with `?demo=1` (fake aircraft around an arbitrary demo point, synthetic map).
+
+## E-ink mode
+
+`?eink=1` turns every grey into black, uses dotted black lines for the map, thickens the line drawings, disables transitions and animations, and re-polls every 60 s (override with `refresh=`). For panels that do a full refresh per render, `refresh=0` renders once and leaves the refresh to your screenshot tool.
+
+## Recently seen strip
+
+A one-line strip above the footer listing the newest military, rotorcraft (incl. Chinook, Osprey), medevac and emergency aircraft from the last 7 days, e.g. `RCH431 C17 · Military · 5h`. It comes from the logger's `interesting.json`, or the page's own localStorage log if there's no logger. It's hidden when there is nothing to show, during the weekly page, or with `recent=0`. Medevac is matched on callsign/operator text (Life Flight, Air Methods, PHI, MEDEVAC…), so it's a best effort.
 
 ## "Interesting this week"
 
@@ -70,6 +110,8 @@ The weekly page shows up to 8 entries: emergencies first, then military, PIA/LAD
 Without the logger the page keeps its own 7-day log in localStorage, which only covers time the page was open.
 
 ### Optional Pi-side logger
+
+Not installed by default. Run these on the Pi when you want it.
 
 `pi/interesting_logger.py` is one Python 3 script, stdlib only. It polls aircraft.json every 30 s, dedupes by ICAO hex per UTC day (keeping first/last seen, max altitude, max speed) and atomically writes a rolling 7-day `interesting.json` next to the page.
 
@@ -94,7 +136,7 @@ Or cron instead (`pi/crontab.example`):
 * * * * * /usr/bin/python3 /usr/local/bin/interesting_logger.py --once
 ```
 
-Options: `--src` (URL or file, e.g. `/run/readsb/aircraft.json`), `--out`, `--interval`, `--max-seen`, `--once`. If `interesting.json` is not beside `aircraft.json`'s folder, point the page at it with `?interesting=`.
+Options: `--src` (URL or file, e.g. `/run/readsb/aircraft.json`), `--out`, `--interval`, `--max-seen`, `--once`. The page looks for `data/interesting.json` and then `interesting.json` next to itself, so the default `--out` works with no settings. Anywhere else: `?interesting=URL`. Check with `curl -s http://localhost/tar1090/interesting.json | head -c 300`. Remove with `sudo systemctl disable --now interesting-logger`.
 
 ## Credits
 

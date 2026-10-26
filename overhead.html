@@ -66,11 +66,13 @@
   .card.feat>*:not(.map){position:relative;z-index:1}
   svg.map{position:absolute;top:0;left:0;width:60%;height:100%;z-index:0;pointer-events:none}
   svg.map path,svg.map circle{fill:none;vector-effect:non-scaling-stroke;stroke-linejoin:round;stroke-linecap:round}
-  svg.map .m-road,svg.map .m-water{stroke:#c4c4c4;stroke-width:.8px}
-  svg.map .m-major,svg.map .m-coast{stroke:#aaa;stroke-width:1.2px}
-  svg.map .m-border{stroke:#c4c4c4;stroke-width:.8px;stroke-dasharray:5 3 1 3}
+  svg.map .m-road,svg.map .m-water{stroke:#999;stroke-width:1px}
+  svg.map .m-major,svg.map .m-coast{stroke:#777;stroke-width:1.5px}
+  svg.map .m-outline{stroke:#888;stroke-width:1.2px;stroke-dasharray:6 3}
+  svg.map .m-border{stroke:#999;stroke-width:.8px;stroke-dasharray:5 3 1 3}
   svg.map .m-rwy{stroke:#888;stroke-width:3px;stroke-linecap:butt}
-  svg.map .m-ring{stroke:#d0d0d0;stroke-width:.8px;stroke-dasharray:2 4}
+  svg.map .m-ring{stroke:#aaa;stroke-width:1px;stroke-dasharray:3 4}
+  svg.map .m-tick{stroke:#aaa;stroke-width:1px}
   svg.map .m-home{fill:#000;stroke:none}
   svg.map .m-dash{stroke:#999;stroke-width:1px;stroke-dasharray:1 3}
   svg.map path.m-ac{fill:#000;stroke:none}
@@ -87,11 +89,34 @@
     .card:not(.feat) svg.plane{height:100%;flex:1.3 1 0}
   }
   @media (max-height:600px){ .k{display:none} .stats{gap:0 calc(var(--u)*2)} .more{display:none} main.week.has-more{grid-template-rows:1.6fr 1fr 1fr} .hdg{display:none} .feat .call{font-size:calc(var(--u)*4.4)} .feat .desc,.feat .carrier{font-size:calc(var(--u)*2.1)} .feat .v{font-size:calc(var(--u)*2.5)} main{padding:calc(var(--u)*1) 0} main.week .card:not(.feat) .carrier{display:none} }
+  /* ---- recently seen strip (hidden when empty) ---- */
+  #recent{display:none;border-top:1px solid var(--ink);padding:calc(var(--u)*.7) 0;font-size:calc(var(--u)*1.55);
+          color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
+  #recent.on{display:block}
+  #recent b{font-weight:normal;color:var(--ink)} #recent .kicker{margin-right:calc(var(--u)*1)}
+  #recent .sep{margin:0 calc(var(--u)*.9)}
+  @media (orientation:portrait){ #recent{white-space:normal;display:none;max-height:3em} #recent.on{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical} }
+  @media (max-height:600px){ #recent{font-size:calc(var(--u)*1.35);padding:calc(var(--u)*.4) 0} }
+  /* ---- ?eink=1: strict 1-bit black/white, no greys, no motion ---- */
+  body.eink{--mid:#000;--faint:#000}
+  body.eink *{animation:none!important;transition:none!important}
+  body.eink .kicker,body.eink .k,body.eink .desc,body.eink footer,body.eink #recent{color:#000}
+  body.eink .card.feat,body.eink .card:not(.feat){border-bottom-style:solid}
+  body.eink svg.plane .gnd{stroke:#000;stroke-dasharray:1 5}
+  body.eink svg.plane path,body.eink svg.plane circle{stroke-width:2px}
+  body.eink svg.plane.big path,body.eink svg.plane.big circle{stroke-width:2.8px}
+  body.eink svg.map path,body.eink svg.map circle{stroke:#000!important;stroke-width:.7px!important}
+  body.eink svg.map .m-road,body.eink svg.map .m-water,body.eink svg.map .m-border,body.eink svg.map .m-ring,body.eink svg.map .m-outline{stroke-dasharray:1 6!important}
+  body.eink svg.map .m-major,body.eink svg.map .m-coast{stroke-dasharray:2 4!important}
+  body.eink svg.map .m-rwy{stroke-width:2px!important;stroke-dasharray:none!important}
+  body.eink svg.map .m-home,body.eink svg.map path.m-ac{fill:#000}
+  body.eink .call .reg{color:#000}
 </style>
 </head>
 <body>
 <header><h1>Overhead</h1><span class="kicker" id="where">ADS-B · live</span></header>
 <main id="main"></main>
+<div id="recent" class="mono" aria-live="polite"></div>
 <footer class="mono"><span id="count"></span><span id="updated"></span></footer>
 
 <script>
@@ -102,6 +127,23 @@ const INTERESTING_URL = AIRCRAFT_URL.replace(/aircraft\.json$/, 'interesting.jso
 const HIGH_FT       = +new URLSearchParams(location.search).get('upHighFt') || 18000;   // "Up high" threshold, override with ?upHighFt=
 const MAX_SEEN_S    = 60;      // ignore stale contacts
 const HOME          = null;    // optional {lat,lon} override if receiver.json lacks one
+/* Optional setup without editing code: define window.OVERHEAD_CONFIG in a <script> before this one
+   (or a config.js), and/or use URL params. Precedence: URL param > OVERHEAD_CONFIG > constants above.
+   { aircraftUrl, receiverUrl, interestingUrl, home:{lat,lon}|null, units:'aero'|'imperial'|'metric',
+     eink:false, refresh:0, recent:true } */
+const CFG = (function(){
+  const q=new URLSearchParams(location.search), w=(typeof window!=='undefined'&&window.OVERHEAD_CONFIG)||{};
+  const pick=(k,d)=>q.get(k)!=null&&q.get(k)!==''?q.get(k):(w[k]!=null?w[k]:d), bool=v=>v===true||/^(1|true|yes|on)$/i.test(String(v));
+  let home=w.home||HOME||null;
+  if(q.get('lat')!=null&&q.get('lon')!=null&&isFinite(+q.get('lat'))&&isFinite(+q.get('lon'))) home={lat:+q.get('lat'),lon:+q.get('lon')};
+  if(home&&!(isFinite(home.lat)&&isFinite(home.lon))) home=null;
+  const units=String(pick('units','aero')).toLowerCase();
+  const eink=bool(pick('eink',false));
+  return { aircraftUrl:q.get('url')||w.aircraftUrl||AIRCRAFT_URL,
+    receiverUrl:q.get('receiver')||w.receiverUrl||null, interestingUrl:q.get('interesting')||w.interestingUrl||null,
+    home, units:['aero','imperial','metric'].includes(units)?units:'aero', eink,
+    refresh:+pick('refresh', eink?60:0)||0, recent:!/^(0|false|off|no)$/i.test(String(pick('recent',true))) };
+})();
 /* ========================================== */
 
 /* Side-profile line drawings (AI-generated, traced with potrace), nose RIGHT, 200x72 box, ground ~y69. */
@@ -245,7 +287,13 @@ function svg(a,{big=false}={}){
 const alt = a => typeof a.alt_baro==='number' ? a.alt_baro : (typeof a.alt_geom==='number'?a.alt_geom:NaN);
 const call = a => (a.flight||'').trim() || (a.r||'').trim() || ('#'+(a.hex||'??????').toUpperCase());
 const fmt = n => Math.round(n).toLocaleString('en-US');
-function fl(ft){ return ft>=HIGH_FT ? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : fmt(ft)+' ft'; }
+const U={aero:{s:1,su:'kt',d:1,du:'nm'},imperial:{s:1.150779,su:'mph',d:1.150779,du:'mi'},metric:{s:1.852,su:'km/h',d:1.852,du:'km'}}[CFG.units];
+function fl(ft){
+  if(!isFinite(ft)) return '—';
+  if(CFG.units==='metric') return fmt(ft*0.3048)+' m';
+  return CFG.units==='aero'&&ft>=HIGH_FT ? 'FL'+String(Math.round(ft/100)).padStart(3,'0') : fmt(ft)+' ft'; }
+const spd = kt => fmt(kt*U.s)+' '+U.su;               // input knots
+const dist = n => (n*U.d).toFixed(1)+' '+U.du;        // input nautical miles
 function nm(home,a){
   if(!home||a.lat==null||a.lon==null) return NaN;
   const R=3440.065,r=x=>x*Math.PI/180,dLa=r(a.lat-home.lat),dLo=r(a.lon-home.lon);
@@ -262,7 +310,19 @@ const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const QS=new URLSearchParams(location.search);
 const MAP_ON=QS.get('map')!=='0', MAP_NM=+QS.get('mapNm')||25;
 const OVERPASS=QS.get('overpass')||'https://overpass-api.de/api/interpreter';
-let MAPDATA=null, LAST=null;
+let MAPDATA=null, LAST=null, OUTLINE=null;
+const OVERPASS_ALT=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+/* readsb writes data/outline.json (actual reception range) on a stock tar1090 Pi when lat/lon are set. */
+function parseOutline(j){
+  const a=j&&j.actualRange, pts=(a&&((a.last24h&&a.last24h.points)||(a.alltime&&a.alltime.points)))||(j&&j.points)||null;
+  return Array.isArray(pts)?pts.filter(p=>Array.isArray(p)&&isFinite(p[0])&&isFinite(p[1])).map(p=>[+p[0],+p[1]]):null;
+}
+/* No position anywhere: estimate one from the aircraft in view (median), so rings/outline still draw. */
+function estHome(list){
+  const la=[],lo=[]; for(const a of list||[]) if(a.lat!=null&&a.lon!=null&&(a.seen_pos==null||a.seen_pos<60)){la.push(+a.lat);lo.push(+a.lon);}
+  if(la.length<2) return null; const med=v=>{v.sort((x,y)=>x-y);return v[v.length>>1];};
+  return {lat:med(la),lon:med(lo),est:true};
+}
 const toXY=(h,lat,lon)=>[(lon-h.lon)*60*Math.cos(h.lat*Math.PI/180), -(lat-h.lat)*60];
 function mapLayer(h,a){
   if(!h || !MAP_ON) return '';
@@ -271,6 +331,8 @@ function mapLayer(h,a){
     const d='M'+w.p.map(([la,lo])=>toXY(h,la,lo).map(v=>v.toFixed(2)).join(' ')).join('L');
     g+=`<path class="m-${w.k}" d="${d}"/>`;
   }
+  if(OUTLINE&&OUTLINE.length>2) g+=`<path class="m-outline" d="M${OUTLINE.map(([la,lo])=>toXY(h,la,lo).map(v=>v.toFixed(2)).join(' ')).join('L')}Z"/>`;
+  const k=R*.06; g+=`<path class="m-tick" d="M0 ${-R*.8-k}V${-R*.8+k}M0 ${R*.8-k}V${R*.8+k}M${-R*.8-k} 0H${-R*.8+k}M${R*.8-k} 0H${R*.8+k}"/>`;
   g+=`<circle class="m-ring" r="${R*.4}"/><circle class="m-ring" r="${R*.8}"/><circle class="m-home" r="${R*.012}"/>`;
   if(a && a.lat!=null && a.lon!=null){
     let [x,y]=toXY(h,a.lat,a.lon); const d=Math.hypot(x,y), lim=R*.92;
@@ -287,28 +349,33 @@ function simplify(p,tol){ // drop points closer than tol (deg) to the previous k
 }
 async function loadMap(h){
   if(!h || !MAP_ON || !window.fetch) return null;
-  const key=`ovmap:v1:${h.lat.toFixed(2)},${h.lon.toFixed(2)}:${MAP_NM}`;
-  try{ const c=localStorage.getItem(key); if(c) return JSON.parse(c); }catch(e){}
+  const key=`ovmap:v2:${h.lat.toFixed(2)},${h.lon.toFixed(2)}:${MAP_NM}`;
+  try{ const c=localStorage.getItem(key); if(c){ const m=JSON.parse(c); if(m&&m.w&&m.w.length) return m; } }catch(e){}
   const dl=MAP_NM/60, dn=dl/Math.cos(h.lat*Math.PI/180);
   const bb=[h.lat-dl,h.lon-dn,h.lat+dl,h.lon+dn].map(v=>v.toFixed(4)).join(',');
   const q=`[out:json][timeout:25][bbox:${bb}];(way[highway~"^(motorway|trunk|primary)$"];way[natural=coastline];way[natural=water][water~"^(lake|reservoir|river)$"];way[waterway=riverbank];way[boundary=administrative][admin_level~"^(4|6)$"];way[aeroway=runway];);out geom;`;
-  const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),30000);
-  try{
-    const r=await fetch(OVERPASS,{method:'POST',body:'data='+encodeURIComponent(q),signal:ctl.signal,
-      headers:{'Content-Type':'application/x-www-form-urlencoded'}});
-    if(!r.ok) return null;
-    const j=await r.json(), w=[];
-    for(const e of j.elements||[]){
-      if(!e.geometry || e.geometry.length<2) continue; const t=e.tags||{};
-      const k=t.aeroway==='runway'?'rwy':t.boundary?'border':t.natural==='coastline'?'coast':(t.natural==='water'||t.waterway)?'water':/motorway|trunk/.test(t.highway)?'major':'road';
-      const p=e.geometry.map(n=>[+n.lat.toFixed(4),+n.lon.toFixed(4)]);
-      if(k==='water'){ const la=p.map(v=>v[0]),lo=p.map(v=>v[1]); if(Math.max(...la)-Math.min(...la)+Math.max(...lo)-Math.min(...lo)<0.02) continue; }
-      w.push({k,p:k==='rwy'?p:simplify(p,0.002)});
-    }
-    const m={w,src:'map © OpenStreetMap contributors'};
-    try{ localStorage.setItem(key,JSON.stringify(m)); }catch(e){}
-    return m;
-  }catch(e){ return null; } finally{ clearTimeout(to); }
+  const eps=QS.get('overpass')?[OVERPASS]:OVERPASS_ALT;
+  for(const ep of eps){
+    const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),30000);
+    try{
+      const r=await fetch(ep,{method:'POST',body:'data='+encodeURIComponent(q),signal:ctl.signal,
+        headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+      if(!r.ok) continue;
+      const j=await r.json(), w=[];
+      for(const e of j.elements||[]){
+        if(!e.geometry || e.geometry.length<2) continue; const t=e.tags||{};
+        const k=t.aeroway==='runway'?'rwy':t.boundary?'border':t.natural==='coastline'?'coast':(t.natural==='water'||t.waterway)?'water':/motorway|trunk/.test(t.highway)?'major':'road';
+        const p=e.geometry.map(n=>[+n.lat.toFixed(4),+n.lon.toFixed(4)]);
+        if(k==='water'){ const la=p.map(v=>v[0]),lo=p.map(v=>v[1]); if(Math.max(...la)-Math.min(...la)+Math.max(...lo)-Math.min(...lo)<0.02) continue; }
+        w.push({k,p:k==='rwy'?p:simplify(p,0.002)});
+      }
+      if(!w.length) continue;            // Overpass returns 200 + empty on timeout: don't cache that
+      const m={w,src:'map © OpenStreetMap contributors'};
+      try{ localStorage.setItem(key,JSON.stringify(m)); }catch(e){}
+      return m;
+    }catch(e){} finally{ clearTimeout(to); }
+  }
+  return null;
 }
 /* Demo: a tiny synthetic map (invented geography, not a real place). */
 function demoMap(h){
@@ -338,8 +405,8 @@ function card(a,feat,kick,o={}){
     <div class="desc">${esc(d)}</div>
     <div class="stats">
       <div><div class="v">${fl(alt(a))}</div><div class="k">Altitude</div></div>
-      <div><div class="v">${a.gs!=null?fmt(a.gs)+' kt':'—'}</div><div class="k">Speed</div></div>
-      <div><div class="v">${isNaN(a._d)?'—':a._d.toFixed(1)+' nm'}</div><div class="k">Distance</div></div>
+      <div><div class="v">${a.gs!=null?spd(a.gs):'—'}</div><div class="k">Speed</div></div>
+      <div><div class="v">${isNaN(a._d)?'—':dist(a._d)}</div><div class="k">Distance</div></div>
       ${feat?`<div class="hdg"><div class="v">${a.track!=null?Math.round(a.track)+'° '+compass(a.track):'—'}</div><div class="k">Heading</div></div>`:''}
     </div></div></div>`;
 }
@@ -351,15 +418,14 @@ function weekCard(e,feat,kick,flip,c,d){
     <div class="call mono">${esc(id)}${e.flight&&e.r?` <span class="reg">${esc(e.r)}</span>`:''}</div>
     ${c?`<div class="carrier">${emblem(c.emb)}${esc(c.name)}</div>`:''}
     <div class="desc">${esc(d)}</div>
-    ${!feat?`<div class="v" style="margin-top:calc(var(--u)*.6)">${esc(when)} · max ${e.maxAlt?fl(e.maxAlt):'—'}${e.maxGs?` · ${fmt(e.maxGs)} kt`:''}</div>`:`<div class="stats">
+    ${!feat?`<div class="v" style="margin-top:calc(var(--u)*.6)">${esc(when)} · max ${e.maxAlt?fl(e.maxAlt):'—'}${e.maxGs?` · ${spd(e.maxGs)}`:''}</div>`:`<div class="stats">
       <div><div class="v">${esc(when)}</div><div class="k">Last seen</div></div>
       <div><div class="v">${e.maxAlt?fl(e.maxAlt):'—'}</div><div class="k">Max altitude</div></div>
-      ${e.maxGs?`<div><div class="v">${fmt(e.maxGs)} kt</div><div class="k">Max speed</div></div>`:''}
+      ${e.maxGs?`<div><div class="v">${spd(e.maxGs)}</div><div class="k">Max speed</div></div>`:''}
     </div>`}</div></div>`;
 }
 function render(data, rx){
-  const home = HOME || (rx && rx.lat!=null ? {lat:+rx.lat,lon:+rx.lon} : null)
-    || (QS.get('lat')!=null && QS.get('lon')!=null ? {lat:+QS.get('lat'),lon:+QS.get('lon')} : null);
+  const home = CFG.home || (rx && rx.lat!=null && rx.lon!=null ? {lat:+rx.lat,lon:+rx.lon} : null) || estHome(data && data.aircraft);
   LAST={data,rx,home};
   const list = (data && data.aircraft || [])
     .filter(a => !isNaN(alt(a)) && (a.seen==null || a.seen<MAX_SEEN_S))
@@ -377,7 +443,7 @@ function render(data, rx){
   const t = data && data.now ? new Date(data.now*1000) : new Date();
   document.getElementById('updated').textContent = (window.__DEMO?'DEMO DATA · ':'')+'updated '+
     t.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
-  if(home) document.getElementById('where').textContent =
+  if(home) document.getElementById('where').textContent = (home.est?'~':'')+
     `${Math.abs(home.lat).toFixed(2)}°${home.lat>=0?'N':'S'} ${Math.abs(home.lon).toFixed(2)}°${home.lon>=0?'E':'W'}`;
 }
 function renderError(msg){
@@ -397,12 +463,14 @@ const COMMON_TYPES=new Set(('C150 C152 C162 C170 C172 C175 C177 C182 C206 C208 C
  'B712 B733 B734 B735 B736 B737 B738 B739 B37M B38M B39M B3XM A318 A319 A320 A321 A19N A20N A21N BCS1 BCS3 B752 B753 '+
  'A332 A333 A339 A359 A35K B762 B763 B764 B772 B77L B773 B77W B788 B789 B78X').split(' '));
 const WIDE=/^(A3[3-5]|A38|B7[4678]|B77|B78|MD11|DC10|IL96|A124|C5M|C17$)/, QUAD=/^(A34|A38|B74|A124|C5M|IL96|B52|K35R|E3)/;
+const MEDEVAC=/medevac|medical|life ?flight|air ?methods|careflight|med ?flight|angel ?flight|\bphi\b|air ?evac|\bLN\d|^\s*(PHM|AMF|LFL|EVAC|MEDIC)/i;
 function whyInteresting(a){
   const w=[], f=a.dbFlags||0, sq=String(a.squawk||''), t=(a.t||'').toUpperCase(), al=alt(a);
   if(sq==='7500') w.push('Hijack 7500'); else if(sq==='7600') w.push('Radio failure 7600'); else if(sq==='7700') w.push('Emergency 7700');
   else if(a.emergency && a.emergency!=='none') w.push('Emergency');
   if(f&1) w.push('Military'); if(f&2) w.push('Flagged interesting'); if(f&4) w.push('PIA'); if(f&8) w.push('LADD');
   if(a.category==='A7' || HELIS.has(shapeFor(a))) w.push('Helicopter');
+  if(MEDEVAC.test([a.flight,a.ownOp,a.desc].join(' '))) w.push('Medevac');
   if(QUAD.test(t)) w.push('Four-engine'); else if(WIDE.test(t)) w.push('Widebody');
   if(al>45000) w.push('Very high'); if((a.gs||0)>550) w.push('Very fast');
   if(t && !COMMON_TYPES.has(t) && !w.includes('Helicopter') && !w.includes('Military')) w.push('Rare type');
@@ -423,7 +491,7 @@ function logLocal(list,nowS){
   try{ localStorage.setItem(LS_KEY,JSON.stringify(log)); }catch(e){}
   return log;
 }
-const RANK=['Hijack','Emergency','Radio','Military','PIA','LADD','Flagged','Four','Very','Helicopter','Widebody','Rare'];
+const RANK=['Hijack','Emergency','Radio','Medevac','Military','PIA','LADD','Flagged','Four','Very','Helicopter','Widebody','Rare'];
 const rankOf=e=>Math.min(...e.why.map(w=>{const i=RANK.findIndex(r=>w.startsWith(r));return i<0?99:i;}));
 function weekView(){
   const v=QS.get('view'); if(v==='week') return true; if(v==='live'||!CYCLE_S) return false;
@@ -434,6 +502,7 @@ function renderWeek(entries,nowS){
   const list=(entries||[]).filter(e=>e.last>cut&&e.why&&e.why.length)
     .sort((x,y)=>rankOf(x)-rankOf(y)||y.last-x.last).slice(0,9);
   document.getElementById('where').textContent='Interesting this week';
+  renderRecent([],0);
   M.className='week';
   if(!list.length){ M.innerHTML=`<div class="quiet">Nothing unusual yet<small class="kicker">military, emergencies, rare types show up here</small></div>`; return; }
   const top=list.slice(0,3), more=list.slice(3);
@@ -444,15 +513,32 @@ function renderWeek(entries,nowS){
   document.getElementById('count').textContent=`${list.length} of ${entries.length} logged in 7 days`;
 }
 
+/* ---------- "Recently seen" strip ----------
+   Military, rotorcraft and medevac from interesting.json (or the local log). Hidden when empty or ?recent=0. */
+const RECENT_TAGS=/^(Military|Helicopter|Medevac|Hijack|Emergency|Radio)/;
+function ago(s){ s=Math.max(0,s); return s<3600?Math.max(1,Math.round(s/60))+'m':s<86400?Math.round(s/3600)+'h':Math.round(s/86400)+'d'; }
+function renderRecent(entries,nowS){
+  const el=document.getElementById('recent'); if(!el) return;
+  const list=CFG.recent?(entries||[]).filter(e=>e&&e.last>nowS-WEEK_DAYS*86400&&(e.why||[]).some(w=>RECENT_TAGS.test(w)))
+    .sort((x,y)=>y.last-x.last).slice(0,6):[];
+  if(!list.length){ el.className='mono'; el.innerHTML=''; return; }
+  el.className='mono on';
+  el.innerHTML='<span class="kicker">Recently seen</span>'+list.map(e=>{
+    const tag=(e.why.find(w=>RECENT_TAGS.test(w))||'').replace(/ \d+$/,'');
+    return `<b>${esc(e.flight||e.r||('#'+String(e.hex).toUpperCase()))}</b> ${esc(e.t||'')} · ${esc(tag)} · ${ago(nowS-e.last)}`;
+  }).join('<span class="sep">/</span>');
+}
+
 /* ---------- data ---------- */
 const DEMO_INTERESTING = {"now": 1793019600, "aircraft": [{"hex": "ae0001", "flight": "RCH431", "r": "05-5140", "t": "C17", "desc": "Boeing C-17A Globemaster III", "ownOp": "United States Air Force", "dbFlags": 1, "why": ["Military", "Widebody"], "last": 1793001600, "maxAlt": 31000, "category": "A5", "day": "2026-10-26", "first": 1793001000}, {"hex": "fa0101", "flight": "N0FAKE7", "t": "BE36", "desc": "Beech A36 Bonanza", "why": ["Emergency 7700"], "last": 1792836000, "maxAlt": 4500, "category": "A1", "day": "2026-10-24", "first": 1792835400}, {"hex": "ae0002", "flight": "PAT21", "t": "H60", "desc": "Sikorsky UH-60 Black Hawk", "ownOp": "United States Army", "dbFlags": 1, "why": ["Military", "Helicopter"], "last": 1792926000, "maxAlt": 1200, "category": "A7", "day": "2026-10-25", "first": 1792925400}, {"hex": "fa0102", "flight": "GTI8203", "r": "N0FAKE8", "t": "B748", "desc": "Boeing 747-8F", "ownOp": "Atlas Air", "why": ["Four-engine"], "last": 1792760400, "maxAlt": 37000, "category": "A5", "day": "2026-10-23", "first": 1792759800}, {"hex": "fa0103", "flight": "N0FAKE9", "t": "DHC2", "desc": "de Havilland Canada DHC-2 Beaver", "why": ["Rare type"], "last": 1792670400, "maxAlt": 2500, "category": "A1", "day": "2026-10-22", "first": 1792669800}, {"hex": "fa0104", "flight": "N0FAKE10", "t": "GLF6", "desc": "Gulfstream G650", "dbFlags": 4, "why": ["PIA", "Very high"], "last": 1792900800, "maxAlt": 51000, "category": "A2", "day": "2026-10-25", "first": 1792900200}, {"hex": "fa0105", "flight": "N0HELO2", "t": "EC35", "desc": "Airbus Helicopters H135", "ownOp": "Demo Medevac", "why": ["Helicopter"], "last": 1792587600, "maxAlt": 1500, "category": "A7", "day": "2026-10-21", "first": 1792587000}, {"hex": "fa0106", "flight": "N0FAKE11", "t": "P51", "desc": "North American P-51 Mustang", "why": ["Rare type"], "last": 1792501200, "maxAlt": 6500, "category": "A1", "day": "2026-10-20", "first": 1792500600}]};
-const DEMO_AIRCRAFT = /*DEMO*/{"now": 1793019600, "aircraft": [{"hex": "fa0001", "flight": "SWA439", "t": "B38M", "alt_baro": 36000, "gs": 478, "track": 62, "lat": 40.21, "lon": -74.83, "category": "A3", "seen": 0.4}, {"hex": "fa0002", "flight": "UAL88", "t": "B789", "alt_baro": 39000, "gs": 512, "track": 215, "lat": 40.31, "lon": -75.2, "category": "A5", "seen": 1.1}, {"hex": "fa0009", "flight": "EDV5012", "t": "CRJ9", "alt_baro": 21000, "gs": 390, "track": 40, "lat": 40.4, "lon": -75.1, "category": "A3", "seen": 1.0}, {"hex": "fa0003", "flight": "N0FAKE1", "t": "C172", "alt_baro": 1500, "baro_rate": 700, "gs": 92, "track": 270, "lat": 40.012, "lon": -75.01, "category": "A1", "seen": 0.2}, {"hex": "fa0004", "flight": "N0FAKE2", "t": "PA28", "alt_baro": 2200, "gs": 101, "track": 95, "lat": 40.03, "lon": -74.97, "category": "A1", "seen": 0.6}, {"hex": "fa0005", "flight": "N0FAKE3", "t": "BE58", "alt_baro": 3100, "gs": 160, "track": 180, "lat": 39.985, "lon": -75.03, "category": "A1", "seen": 2.0}, {"hex": "fa0006", "flight": "N0HELO", "t": "R44", "alt_baro": 900, "gs": 95, "track": 330, "lat": 40.05, "lon": -75.05, "category": "A7", "seen": 0.9}, {"hex": "fa0007", "flight": "EJA412", "t": "C68A", "alt_baro": 8500, "gs": 250, "track": 140, "lat": 40.08, "lon": -74.9, "category": "A2", "seen": 1.4}]};
-const DEMO_RECEIVER = {"lat":40.0,"lon":-75.0};
+const DEMO_AIRCRAFT = /*DEMO*/{"now": 1793019600, "aircraft": [{"hex": "fa0001", "flight": "SWA439", "t": "B38M", "alt_baro": 36000, "gs": 478, "track": 62, "lat": 39.21, "lon": -97.83, "category": "A3", "seen": 0.4}, {"hex": "fa0002", "flight": "UAL88", "t": "B789", "alt_baro": 39000, "gs": 512, "track": 215, "lat": 39.31, "lon": -98.2, "category": "A5", "seen": 1.1}, {"hex": "fa0009", "flight": "EDV5012", "t": "CRJ9", "alt_baro": 21000, "gs": 390, "track": 40, "lat": 39.4, "lon": -98.1, "category": "A3", "seen": 1.0}, {"hex": "fa0003", "flight": "N0FAKE1", "t": "C172", "alt_baro": 1500, "baro_rate": 700, "gs": 92, "track": 270, "lat": 39.012, "lon": -98.01, "category": "A1", "seen": 0.2}, {"hex": "fa0004", "flight": "N0FAKE2", "t": "PA28", "alt_baro": 2200, "gs": 101, "track": 95, "lat": 39.03, "lon": -97.97, "category": "A1", "seen": 0.6}, {"hex": "fa0005", "flight": "N0FAKE3", "t": "BE58", "alt_baro": 3100, "gs": 160, "track": 180, "lat": 38.985, "lon": -98.03, "category": "A1", "seen": 2.0}, {"hex": "fa0006", "flight": "N0HELO", "t": "R44", "alt_baro": 900, "gs": 95, "track": 330, "lat": 39.05, "lon": -98.05, "category": "A7", "seen": 0.9}, {"hex": "fa0007", "flight": "EJA412", "t": "C68A", "alt_baro": 8500, "gs": 250, "track": 140, "lat": 39.08, "lon": -97.9, "category": "A2", "seen": 1.4}]};
+const DEMO_RECEIVER = {"lat":39.0,"lon":-98.0};
 
 async function getJSON(u){ const r=await fetch(u,{cache:'no-store'}); if(!r.ok) throw new Error(r.status+' '+u); return r.json(); }
 
 (async function main(){
   const q=new URLSearchParams(location.search);
+  if(CFG.eink) document.body.classList.add('eink');
   // 1) Tesserae Code element: data is injected as ctx.data (fetch is blocked in its sandbox)
   const C = window.ctx;
   if(C && C.data && !q.has('demo')){
@@ -468,23 +554,33 @@ async function getJSON(u){ const r=await fetch(u,{cache:'no-store'}); if(!r.ok) 
     try{ ac=await getJSON('sample-aircraft.json'); rx=await getJSON('sample-receiver.json'); }catch(e){}
     if(MAP_ON) MAPDATA=demoMap(rx);
     if(weekView()) return renderWeek(DEMO_INTERESTING.aircraft, DEMO_INTERESTING.now);
-    return render(ac, rx);
+    render(ac, rx); renderRecent(DEMO_INTERESTING.aircraft, DEMO_INTERESTING.now); return;
   }
   // 3) Standalone (served from the Pi, embedded via Tesserae's Webpage widget)
-  const url = q.get('url') || AIRCRAFT_URL;
-  let rx=null; try{ rx=await getJSON(q.get('receiver') || RECEIVER_URL); }catch(e){}
-  const iurl = q.get('interesting') || INTERESTING_URL;
+  const url = CFG.aircraftUrl;
+  const rurl = CFG.receiverUrl || url.replace(/aircraft\.json(\?.*)?$/, 'receiver.json');
+  let rx=null; try{ rx=await getJSON(rurl); }catch(e){}
+  // logger output: explicit URL, else next to aircraft.json, else next to this page (logger default --out)
+  const iurls = CFG.interestingUrl ? [CFG.interestingUrl]
+    : [...new Set([url.replace(/aircraft\.json(\?.*)?$/, 'interesting.json'), INTERESTING_URL, 'interesting.json'])];
+  let iurl=null;
   async function tick(first){
     let data;
     try{ data=await getJSON(url); }catch(e){ if(first) renderError(e.message||String(e)); return; }
     const nowS=data.now||Date.now()/1000, live=(data.aircraft||[]).filter(a=>a.seen==null||a.seen<MAX_SEEN_S);
-    let week=null; try{ const j=await getJSON(iurl); week=j.aircraft||j; }catch(e){}
+    let week=null;
+    for(const u of (iurl?[iurl]:iurls)){ try{ const j=await getJSON(u); week=Array.isArray(j)?j:j.aircraft; if(Array.isArray(week)){ iurl=u; break; } week=null; }catch(e){} }
     if(!week) week=logLocal(live,nowS); else logLocal(live,nowS);
-    if(weekView()) renderWeek(week,nowS); else render(data, rx);
+    if(weekView()) renderWeek(week,nowS); else { render(data, rx); renderRecent(week,nowS); }
   }
+  if(MAP_ON){ try{ OUTLINE=parseOutline(await getJSON(url.replace(/aircraft\.json(\?.*)?$/, 'outline.json'))); }catch(e){} }
   await tick(true);
-  if(LAST && LAST.home && !weekView()){ const m=await loadMap(LAST.home); if(m){ MAPDATA=m; render(LAST.data, LAST.rx); } }
-  const every = +q.get('refresh') || 0;            // seconds; 0 = render once (e-ink)
+  async function mapTry(){
+    if(MAPDATA || !LAST || !LAST.home || weekView()) return;
+    const m=await loadMap(LAST.home); if(m){ MAPDATA=m; render(LAST.data, LAST.rx); }
+  }
+  await mapTry(); setInterval(mapTry, 10*60*1000);   // retry if offline/blocked at boot
+  const every = CFG.refresh;                         // seconds; 0 = render once; ?eink=1 defaults to 60
   if(every) setInterval(()=>tick(false), every*1000);
   else if(CYCLE_S && !q.get('view')){             // no polling: still flip between live and weekly views
     setInterval(()=>tick(false), Math.max(5,Math.min(WEEK_S,CYCLE_S-WEEK_S))*1000); }

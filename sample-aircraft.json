@@ -1,0 +1,114 @@
+{
+ "_note": "FAKE demo data. Callsigns, hex codes and positions are invented.",
+ "now": 1793019600.0,
+ "messages": 123456,
+ "aircraft": [
+  {
+   "hex": "fa0001",
+   "flight": "SWA439",
+   "t": "B38M",
+   "alt_baro": 36000,
+   "gs": 478,
+   "track": 62,
+   "lat": 39.21,
+   "lon": -97.83,
+   "category": "A3",
+   "seen": 0.4
+  },
+  {
+   "hex": "fa0002",
+   "flight": "UAL88",
+   "t": "B789",
+   "alt_baro": 39000,
+   "gs": 512,
+   "track": 215,
+   "lat": 39.31,
+   "lon": -98.2,
+   "category": "A5",
+   "seen": 1.1
+  },
+  {
+   "hex": "fa0009",
+   "flight": "EDV5012",
+   "t": "CRJ9",
+   "alt_baro": 21000,
+   "gs": 390,
+   "track": 40,
+   "lat": 39.4,
+   "lon": -98.1,
+   "category": "A3",
+   "seen": 1.0
+  },
+  {
+   "hex": "fa0003",
+   "flight": "N0FAKE1",
+   "t": "C172",
+   "alt_baro": 1500,
+   "gs": 92,
+   "track": 270,
+   "lat": 39.012,
+   "lon": -98.01,
+   "category": "A1",
+   "seen": 0.2,
+   "baro_rate": 700
+  },
+  {
+   "hex": "fa0004",
+   "flight": "N0FAKE2",
+   "t": "PA28",
+   "alt_baro": 2200,
+   "gs": 101,
+   "track": 95,
+   "lat": 39.03,
+   "lon": -97.97,
+   "category": "A1",
+   "seen": 0.6
+  },
+  {
+   "hex": "fa0005",
+   "flight": "N0FAKE3",
+   "t": "BE58",
+   "alt_baro": 3100,
+   "gs": 160,
+   "track": 180,
+   "lat": 38.985,
+   "lon": -98.03,
+   "category": "A1",
+   "seen": 2.0
+  },
+  {
+   "hex": "fa0006",
+   "flight": "N0HELO",
+   "t": "R44",
+   "alt_baro": 900,
+   "gs": 95,
+   "track": 330,
+   "lat": 39.05,
+   "lon": -98.05,
+   "category": "A7",
+   "seen": 0.9
+  },
+  {
+   "hex": "fa0007",
+   "flight": "EJA412",
+   "t": "C68A",
+   "alt_baro": 8500,
+   "gs": 250,
+   "track": 140,
+   "lat": 39.08,
+   "lon": -97.9,
+   "category": "A2",
+   "seen": 1.4
+  },
+  {
+   "hex": "fa0008",
+   "alt_baro": "ground",
+   "gs": 0,
+   "track": 0,
+   "lat": 39.0,
+   "lon": -98.0,
+   "category": "A1",
+   "seen": 3
+  }
+ ]
+}
