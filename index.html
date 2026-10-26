@@ -111,6 +111,18 @@
   body.eink svg.map .m-rwy{stroke-width:2px!important;stroke-dasharray:none!important}
   body.eink svg.map .m-home,body.eink svg.map path.m-ac{fill:#000}
   body.eink .call .reg{color:#000}
+  /* ---- night mode (red on black) ---- */
+  html.night{background:#000}
+  html.night body{filter:invert(1) sepia(1) saturate(12) hue-rotate(-38deg) brightness(.6)}
+  /* ---- stats view ---- */
+  .route{font-style:normal;letter-spacing:.06em}
+  .st-grid{display:grid;grid-template-columns:1fr 1fr;gap:calc(var(--u)*3);padding:calc(var(--u)*3) 0;border-bottom:1px dashed var(--faint)}
+  .st-col .stats{flex-direction:column;align-items:flex-start;gap:calc(var(--u)*1.5)}
+  .st-types{padding-top:calc(var(--u)*2)}
+  .st-row{display:grid;grid-template-columns:9em 1fr 3em;align-items:center;gap:1em;font-size:calc(var(--u)*2);margin:calc(var(--u)*.7) 0}
+  .st-row i{display:block;height:calc(var(--u)*.9);background:var(--ink,#000)}
+  .st-row b{text-align:right;font-weight:400}
+  html.night body.eink{filter:none}
 </style>
 </head>
 <body>
@@ -402,7 +414,7 @@ function card(a,feat,kick,o={}){
     ${kick?`<div class="kicker">${kick}</div>`:''}
     <div class="call mono">${esc(call(a))}</div>
     ${c?`<div class="carrier">${emblem(c.emb)}${esc(c.name)}</div>`:''}
-    <div class="desc">${esc(d)}</div>
+    <div class="desc">${esc(d)}${(r=>r?` · <span class="route mono">${esc(r)}</span>`:'')(routeFor(a))}</div>
     <div class="stats">
       <div><div class="v">${fl(alt(a))}</div><div class="k">Altitude</div></div>
       <div><div class="v">${a.gs!=null?spd(a.gs):'—'}</div><div class="k">Speed</div></div>
@@ -516,6 +528,7 @@ function renderWeek(entries,nowS){
 /* ---------- "Recently seen" strip ----------
    Military, rotorcraft and medevac from interesting.json (or the local log). Hidden when empty or ?recent=0. */
 const RECENT_TAGS=/^(Military|Helicopter|Medevac|Hijack|Emergency|Radio)/;
+const RECENT_PRI=['Hijack','Emergency','Radio','Medevac','Military','Helicopter','Rare'];
 function ago(s){ s=Math.max(0,s); return s<3600?Math.max(1,Math.round(s/60))+'m':s<86400?Math.round(s/3600)+'h':Math.round(s/86400)+'d'; }
 function renderRecent(entries,nowS){
   const el=document.getElementById('recent'); if(!el) return;
@@ -524,14 +537,135 @@ function renderRecent(entries,nowS){
   if(!list.length){ el.className='mono'; el.innerHTML=''; return; }
   el.className='mono on';
   el.innerHTML='<span class="kicker">Recently seen</span>'+list.map(e=>{
-    const tag=(e.why.find(w=>RECENT_TAGS.test(w))||'').replace(/ \d+$/,'');
+    const tag=(RECENT_PRI.map(r=>e.why.find(w=>w.startsWith(r))).find(Boolean)||'').replace(/ \d+$/,'');
     return `<b>${esc(e.flight||e.r||('#'+String(e.hex).toUpperCase()))}</b> ${esc(e.t||'')} · ${esc(tag)} · ${ago(nowS-e.last)}`;
   }).join('<span class="sep">/</span>');
 }
 
 /* ---------- data ---------- */
-const DEMO_INTERESTING = {"now": 1793019600, "aircraft": [{"hex": "ae0001", "flight": "RCH431", "r": "05-5140", "t": "C17", "desc": "Boeing C-17A Globemaster III", "ownOp": "United States Air Force", "dbFlags": 1, "why": ["Military", "Widebody"], "last": 1793001600, "maxAlt": 31000, "category": "A5", "day": "2026-10-26", "first": 1793001000}, {"hex": "fa0101", "flight": "N0FAKE7", "t": "BE36", "desc": "Beech A36 Bonanza", "why": ["Emergency 7700"], "last": 1792836000, "maxAlt": 4500, "category": "A1", "day": "2026-10-24", "first": 1792835400}, {"hex": "ae0002", "flight": "PAT21", "t": "H60", "desc": "Sikorsky UH-60 Black Hawk", "ownOp": "United States Army", "dbFlags": 1, "why": ["Military", "Helicopter"], "last": 1792926000, "maxAlt": 1200, "category": "A7", "day": "2026-10-25", "first": 1792925400}, {"hex": "fa0102", "flight": "GTI8203", "r": "N0FAKE8", "t": "B748", "desc": "Boeing 747-8F", "ownOp": "Atlas Air", "why": ["Four-engine"], "last": 1792760400, "maxAlt": 37000, "category": "A5", "day": "2026-10-23", "first": 1792759800}, {"hex": "fa0103", "flight": "N0FAKE9", "t": "DHC2", "desc": "de Havilland Canada DHC-2 Beaver", "why": ["Rare type"], "last": 1792670400, "maxAlt": 2500, "category": "A1", "day": "2026-10-22", "first": 1792669800}, {"hex": "fa0104", "flight": "N0FAKE10", "t": "GLF6", "desc": "Gulfstream G650", "dbFlags": 4, "why": ["PIA", "Very high"], "last": 1792900800, "maxAlt": 51000, "category": "A2", "day": "2026-10-25", "first": 1792900200}, {"hex": "fa0105", "flight": "N0HELO2", "t": "EC35", "desc": "Airbus Helicopters H135", "ownOp": "Demo Medevac", "why": ["Helicopter"], "last": 1792587600, "maxAlt": 1500, "category": "A7", "day": "2026-10-21", "first": 1792587000}, {"hex": "fa0106", "flight": "N0FAKE11", "t": "P51", "desc": "North American P-51 Mustang", "why": ["Rare type"], "last": 1792501200, "maxAlt": 6500, "category": "A1", "day": "2026-10-20", "first": 1792500600}]};
+const DEMO_INTERESTING = {"now": 1793019600, "aircraft": [{"hex": "ae0001", "flight": "RCH431", "r": "05-5140", "t": "C17", "desc": "Boeing C-17A Globemaster III", "ownOp": "United States Air Force", "dbFlags": 1, "why": ["Military", "Widebody"], "last": 1793001600, "maxAlt": 31000, "category": "A5", "day": "2026-10-26", "first": 1793001000}, {"hex": "fa0101", "flight": "N0FAKE7", "t": "BE36", "desc": "Beech A36 Bonanza", "why": ["Emergency 7700"], "last": 1792836000, "maxAlt": 4500, "category": "A1", "day": "2026-10-24", "first": 1792835400}, {"hex": "ae0002", "flight": "PAT21", "t": "H60", "desc": "Sikorsky UH-60 Black Hawk", "ownOp": "United States Army", "dbFlags": 1, "why": ["Military", "Helicopter"], "last": 1792926000, "maxAlt": 1200, "category": "A7", "day": "2026-10-25", "first": 1792925400}, {"hex": "fa0102", "flight": "GTI8203", "r": "N0FAKE8", "t": "B748", "desc": "Boeing 747-8F", "ownOp": "Atlas Air", "why": ["Four-engine"], "last": 1792760400, "maxAlt": 37000, "category": "A5", "day": "2026-10-23", "first": 1792759800}, {"hex": "fa0103", "flight": "N0FAKE9", "t": "DHC2", "desc": "de Havilland Canada DHC-2 Beaver", "why": ["Rare type"], "last": 1792670400, "maxAlt": 2500, "category": "A1", "day": "2026-10-22", "first": 1792669800}, {"hex": "fa0104", "flight": "N0FAKE10", "t": "GLF6", "desc": "Gulfstream G650", "dbFlags": 4, "why": ["PIA", "Very high"], "last": 1792900800, "maxAlt": 51000, "category": "A2", "day": "2026-10-25", "first": 1792900200}, {"hex": "fa0105", "flight": "LN2", "t": "EC35", "desc": "Airbus Helicopters H135", "ownOp": "Demo Air Medical", "why": ["Medevac", "Helicopter"], "last": 1793008800, "maxAlt": 1500, "category": "A7", "day": "2026-10-26", "first": 1793008200}, {"hex": "fa0106", "flight": "N0FAKE11", "t": "P51", "desc": "North American P-51 Mustang", "why": ["Rare type"], "last": 1792501200, "maxAlt": 6500, "category": "A1", "day": "2026-10-20", "first": 1792500600}]};
 const DEMO_AIRCRAFT = /*DEMO*/{"now": 1793019600, "aircraft": [{"hex": "fa0001", "flight": "SWA439", "t": "B38M", "alt_baro": 36000, "gs": 478, "track": 62, "lat": 39.21, "lon": -97.83, "category": "A3", "seen": 0.4}, {"hex": "fa0002", "flight": "UAL88", "t": "B789", "alt_baro": 39000, "gs": 512, "track": 215, "lat": 39.31, "lon": -98.2, "category": "A5", "seen": 1.1}, {"hex": "fa0009", "flight": "EDV5012", "t": "CRJ9", "alt_baro": 21000, "gs": 390, "track": 40, "lat": 39.4, "lon": -98.1, "category": "A3", "seen": 1.0}, {"hex": "fa0003", "flight": "N0FAKE1", "t": "C172", "alt_baro": 1500, "baro_rate": 700, "gs": 92, "track": 270, "lat": 39.012, "lon": -98.01, "category": "A1", "seen": 0.2}, {"hex": "fa0004", "flight": "N0FAKE2", "t": "PA28", "alt_baro": 2200, "gs": 101, "track": 95, "lat": 39.03, "lon": -97.97, "category": "A1", "seen": 0.6}, {"hex": "fa0005", "flight": "N0FAKE3", "t": "BE58", "alt_baro": 3100, "gs": 160, "track": 180, "lat": 38.985, "lon": -98.03, "category": "A1", "seen": 2.0}, {"hex": "fa0006", "flight": "N0HELO", "t": "R44", "alt_baro": 900, "gs": 95, "track": 330, "lat": 39.05, "lon": -98.05, "category": "A7", "seen": 0.9}, {"hex": "fa0007", "flight": "EJA412", "t": "C68A", "alt_baro": 8500, "gs": 250, "track": 140, "lat": 39.08, "lon": -97.9, "category": "A2", "seen": 1.4}]};
+/* ---------- Route lookup (adsbdb.com, free + CORS) ----------
+   Airline callsigns only (3-letter ICAO prefix + digits). Cached 24h in localStorage, max 1 request / 4 s,
+   failures cached 1h and otherwise ignored. Off with ?routes=0 or OVERHEAD_CONFIG.routes=false. */
+const ROUTES_ON=!/^(0|false|off|no)$/i.test(String(QS.get('routes')??((window.OVERHEAD_CONFIG||{}).routes??true)));
+const ROUTE_API=(window.OVERHEAD_CONFIG||{}).routeApi||'https://api.adsbdb.com/v0/callsign/';
+const RT_KEY='routes:v1', RT_TTL=86400, RT_FAIL_TTL=3600, RT_GAP_MS=4000;
+let RT={}; try{ RT=JSON.parse(localStorage.getItem(RT_KEY))||{}; }catch(e){}
+const rtQueue=[]; let rtBusy=false, rtRedraw=null;
+const isAirlineCS=cs=>/^[A-Z]{3}\d{1,4}[A-Z]{0,2}$/.test(cs)&&!/^(RCH|PAT|CNV|SPAR|SAM|EXEC)/.test(cs);
+function rtSave(){ const n=Date.now()/1000; for(const k in RT) if(RT[k].x<n) delete RT[k];
+  try{ localStorage.setItem(RT_KEY,JSON.stringify(RT)); }catch(e){} }
+function routeFor(a){
+  if(!ROUTES_ON) return null;
+  if(a.route) return a.route;                                  // demo data / pre-filled
+  const cs=(a.flight||'').trim().toUpperCase(); if(!isAirlineCS(cs)) return null;
+  const c=RT[cs]; if(c&&c.x>Date.now()/1000) return c.r||null;
+  if(!rtQueue.includes(cs)&&rtQueue.length<20){ rtQueue.push(cs); rtPump(); }
+  return null;
+}
+async function rtPump(){
+  if(rtBusy||!rtQueue.length) return; rtBusy=true;
+  const cs=rtQueue.shift(), n=Date.now()/1000;
+  try{
+    const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),8000);
+    const r=await fetch(ROUTE_API+encodeURIComponent(cs),{signal:ctl.signal}); clearTimeout(to);
+    const j=r.ok?await r.json():null, f=j&&j.response&&j.response.flightroute;
+    const code=p=>p&&(p.iata_code||p.icao_code);
+    if(f&&code(f.origin)&&code(f.destination)){
+      RT[cs]={x:n+RT_TTL,r:[f.origin,f.midpoint,f.destination].filter(Boolean).map(code).join(' → ')};
+      if(rtRedraw) rtRedraw();
+    } else RT[cs]={x:n+(r.status===404||r.ok?RT_TTL:RT_FAIL_TTL),r:null};
+  }catch(e){ RT[cs]={x:n+RT_FAIL_TTL,r:null}; }
+  rtSave(); setTimeout(()=>{ rtBusy=false; rtPump(); },RT_GAP_MS);
+}
+
+/* ---------- Night mode: red-on-black after local sunset ----------
+   ?night=auto|on|off (default auto; OVERHEAD_CONFIG.night). Sun times from home lat/lon (NOAA approximation, no API).
+   Ignored in e-ink mode. */
+const NIGHT=String(QS.get('night')||(window.OVERHEAD_CONFIG||{}).night||'auto').toLowerCase();
+function sunTimes(lat,lon,d){            // returns {rise,set} as epoch ms (UTC) for the date d, or null at polar day/night
+  const rad=Math.PI/180, J=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())/864e5+2440587.5;
+  const n=Math.round(J-2451545.0009+lon/360), Js=2451545.0009-lon/360+n;
+  const M=(357.5291+0.98560028*(Js-2451545))%360, C=1.9148*Math.sin(M*rad)+0.02*Math.sin(2*M*rad)+0.0003*Math.sin(3*M*rad);
+  const L=(M+C+180+102.9372)%360, Jt=Js+0.0053*Math.sin(M*rad)-0.0069*Math.sin(2*L*rad);
+  const dec=Math.asin(Math.sin(L*rad)*Math.sin(23.4397*rad));
+  const cosw=(Math.sin(-0.833*rad)-Math.sin(lat*rad)*Math.sin(dec))/(Math.cos(lat*rad)*Math.cos(dec));
+  if(cosw<-1||cosw>1) return {polar:cosw<-1?'day':'night'};
+  const w=Math.acos(cosw)/rad/360, ms=j=>(j-2440587.5)*864e5;
+  return {rise:ms(Jt-w),set:ms(Jt+w)};
+}
+function isNight(home,tMs){
+  if(!home) return false;
+  for(const o of [-1,0,1]){ const s=sunTimes(home.lat,home.lon,new Date(tMs+o*864e5));
+    if(s.polar){ if(o===0) return s.polar==='night'; continue; }
+    if(tMs>=s.rise&&tMs<=s.set) return false; }
+  return true;
+}
+function applyNight(home,tMs){
+  const on=!CFG.eink&&(NIGHT==='on'||(NIGHT==='auto'&&isNight(home,tMs||Date.now())));
+  document.documentElement.classList.toggle('night',on);
+}
+
+/* ---------- Stats: daily + weekly ----------
+   Kept in localStorage per local day (unique hex, per-hour counts, types, farthest contact), merged with
+   interesting.json types. Shown as a card in the weekly rotation, or always with ?view=stats. */
+const ST_KEY='stats:v1';
+function dayKey(tMs){ const d=new Date(tMs); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function loadStats(){ try{ return JSON.parse(localStorage.getItem(ST_KEY))||{}; }catch(e){ return {}; } }
+function logStats(list,home,nowS){
+  const S=loadStats(), tMs=nowS*1000, k=dayKey(tMs), h=new Date(tMs).getHours();
+  const D=S[k]||(S[k]={hex:{},hours:Array(24).fill(0),types:{},far:null});
+  for(const a of list){ if(!a.hex) continue;
+    const first=!D.hex[a.hex];
+    if(first){ D.hex[a.hex]=1; D.hours[h]++; const t=(a.t||'').toUpperCase(); if(t) D.types[t]=(D.types[t]||0)+1; }
+    const dd=nm(home,a);
+    if(isFinite(dd)&&(!D.far||dd>D.far.d)) D.far={d:dd,id:(a.flight||'').trim()||a.r||a.hex,t:a.t||''};
+  }
+  const keep=Object.keys(S).sort().slice(-8); for(const x in S) if(!keep.includes(x)) delete S[x];
+  try{ localStorage.setItem(ST_KEY,JSON.stringify(S)); }catch(e){}
+  return S;
+}
+function summarize(days){
+  const hex=new Set(), hours=Array(24).fill(0), types={}; let far=null;
+  for(const D of days){ Object.keys(D.hex||{}).forEach(x=>hex.add(x)); (D.hours||[]).forEach((v,i)=>hours[i]+=v);
+    for(const t in D.types||{}) types[t]=(types[t]||0)+D.types[t]; if(D.far&&(!far||D.far.d>far.d)) far=D.far; }
+  const bh=hours.indexOf(Math.max(...hours));
+  return {unique:hex.size||days.reduce((s,D)=>s+(D.unique||0),0), busiest:Math.max(...hours)?bh:null, busiestN:hours[bh], far,
+    top:Object.entries(types).sort((a,b)=>b[1]-a[1]).slice(0,10)};
+}
+const hr=h=>h==null?'—':new Date(2000,0,1,h).toLocaleTimeString('en-US',{hour:'numeric'});
+function renderStats(S,interesting,nowS){
+  const today=S[dayKey(nowS*1000)]||{}, week=Object.values(S);
+  const wk=summarize(week), td=summarize([today]);
+  if(interesting&&interesting.length&&!wk.top.length){ const ty={}; interesting.forEach(e=>{ if(e.t) ty[e.t]=(ty[e.t]||0)+1; });
+    wk.top=Object.entries(ty).sort((a,b)=>b[1]-a[1]).slice(0,10); }
+  const max=wk.top.length?wk.top[0][1]:1;
+  const col=(lbl,s)=>`<div class="st-col"><div class="kicker">${lbl}</div><div class="stats">
+      <div><div class="v">${s.unique||0}</div><div class="k">Unique aircraft</div></div>
+      <div><div class="v">${hr(s.busiest)}</div><div class="k">Busiest hour${s.busiestN?` · ${s.busiestN}`:''}</div></div>
+      <div><div class="v">${s.far?dist(s.far.d):'—'}</div><div class="k">Farthest${s.far?` · ${esc(s.far.id)}`:''}</div></div></div></div>`;
+  document.getElementById('where').textContent='Stats';
+  renderRecent([],0);
+  const M=document.getElementById('main'); M.className='statsv';
+  M.innerHTML=`<div class="st-grid">${col('Today',td)}${col('Last 7 days',wk)}</div>
+    <div class="st-types"><div class="kicker">Top types · 7 days</div>${wk.top.length?wk.top.map(([t,n],i)=>
+      `<div class="st-row mono"><span>${i+1}. ${esc(t)}</span><i style="width:${Math.max(4,n/max*100)}%"></i><b>${n}</b></div>`).join(''):'<div class="desc">Collecting…</div>'}</div>`;
+  document.getElementById('count').textContent=`${week.length} day${week.length===1?'':'s'} of stats`;
+}
+function rotView(){            // live | week | stats
+  const v=QS.get('view'); if(v==='week'||v==='stats'||v==='live') return v; if(!CYCLE_S) return 'live';
+  const p=(Date.now()/1000)%CYCLE_S; return p<WEEK_S?'week':p<2*WEEK_S&&CYCLE_S>=3*WEEK_S?'stats':'live';
+}
+
+const DEMO_ROUTES={"UAL88":"EWR → TLV","DAL1234":"ATL → DEN","AAL100":"JFK → LHR","SWA2210":"MDW → DEN"};
+function DEMO_STATS(nowS){                       // synthetic 7-day stats for ?demo=1
+  const S={}, ty=[["B738",61],["A320",48],["E75L",44],["CRJ9",31],["B739",27],["A321",22],["C172",19],["B38M",17],["A20N",12],["BCS3",9]];
+  for(let i=6;i>=0;i--){ const k=dayKey((nowS-i*86400)*1000), hours=Array(24).fill(0).map((_,h)=>Math.round(Math.max(0,Math.sin((h-5)/18*Math.PI))*(30+i*2)));
+    const hex={}; for(let j=0;j<180+i*7;j++) hex['d'+i+'_'+j]=1;
+    S[k]={hex,hours,types:Object.fromEntries(ty.map(([t,n])=>[t,Math.round(n/7)+(i%3)])),far:{d:180+i*9,id:i?'DAL1234':'AAL100',t:'B772'}}; }
+  return S;
+}
 const DEMO_RECEIVER = {"lat":39.0,"lon":-98.0};
 
 async function getJSON(u){ const r=await fetch(u,{cache:'no-store'}); if(!r.ok) throw new Error(r.status+' '+u); return r.json(); }
@@ -553,7 +687,11 @@ async function getJSON(u){ const r=await fetch(u,{cache:'no-store'}); if(!r.ok) 
     let ac=DEMO_AIRCRAFT, rx=DEMO_RECEIVER;
     try{ ac=await getJSON('sample-aircraft.json'); rx=await getJSON('sample-receiver.json'); }catch(e){}
     if(MAP_ON) MAPDATA=demoMap(rx);
-    if(weekView()) return renderWeek(DEMO_INTERESTING.aircraft, DEMO_INTERESTING.now);
+    (ac.aircraft||[]).forEach(a=>{ if(!a.route&&DEMO_ROUTES[(a.flight||'').trim()]) a.route=DEMO_ROUTES[(a.flight||'').trim()]; });
+    if(QS.has("night")) applyNight(rx, (ac.now||Date.now()/1000)*1000);   // demo: only when asked
+    const v=rotView();
+    if(v==='stats') return renderStats(DEMO_STATS(ac.now||Date.now()/1000), DEMO_INTERESTING.aircraft, ac.now||Date.now()/1000);
+    if(v==='week') return renderWeek(DEMO_INTERESTING.aircraft, DEMO_INTERESTING.now);
     render(ac, rx); renderRecent(DEMO_INTERESTING.aircraft, DEMO_INTERESTING.now); return;
   }
   // 3) Standalone (served from the Pi, embedded via Tesserae's Webpage widget)
@@ -571,12 +709,17 @@ async function getJSON(u){ const r=await fetch(u,{cache:'no-store'}); if(!r.ok) 
     let week=null;
     for(const u of (iurl?[iurl]:iurls)){ try{ const j=await getJSON(u); week=Array.isArray(j)?j:j.aircraft; if(Array.isArray(week)){ iurl=u; break; } week=null; }catch(e){} }
     if(!week) week=logLocal(live,nowS); else logLocal(live,nowS);
-    if(weekView()) renderWeek(week,nowS); else { render(data, rx); renderRecent(week,nowS); }
+    const home=CFG.home||(rx&&rx.lat!=null?{lat:+rx.lat,lon:+rx.lon}:null)||(LAST&&LAST.home);
+    const S=home?logStats(live,home,nowS):loadStats();
+    applyNight(home, nowS*1000);
+    const v=rotView();
+    if(v==='stats') renderStats(S,week,nowS); else if(v==='week') renderWeek(week,nowS); else { render(data, rx); renderRecent(week,nowS); }
+    rtRedraw=()=>{ if(rotView()==='live'&&LAST) render(LAST.data,LAST.rx); };
   }
   if(MAP_ON){ try{ OUTLINE=parseOutline(await getJSON(url.replace(/aircraft\.json(\?.*)?$/, 'outline.json'))); }catch(e){} }
   await tick(true);
   async function mapTry(){
-    if(MAPDATA || !LAST || !LAST.home || weekView()) return;
+    if(MAPDATA || !LAST || !LAST.home || rotView()!=='live') return;
     const m=await loadMap(LAST.home); if(m){ MAPDATA=m; render(LAST.data, LAST.rx); }
   }
   await mapTry(); setInterval(mapTry, 10*60*1000);   // retry if offline/blocked at boot

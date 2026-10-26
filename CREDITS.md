@@ -24,3 +24,19 @@ When the receiver location is known, the faint background map is fetched at runt
 Map data © OpenStreetMap contributors, available under the [Open Database License (ODbL)](https://www.openstreetmap.org/copyright). The page shows this attribution in its footer whenever a map is drawn. No map data is bundled. Demo mode uses a small synthetic map of invented geography.
 
 To turn the map off, use `?map=0`. To point it at another Overpass endpoint, use `?overpass=`.
+
+## Flight routes
+
+Origin and destination airports are looked up at runtime from the free [adsbdb.com](https://www.adsbdb.com/) callsign API (data crowd-sourced, can be wrong or stale). Nothing is bundled.
+
+## Sun times
+
+Sunrise/sunset for night mode use the standard NOAA/Wikipedia "sunrise equation" approximation, computed locally.
+
+## Push notifications
+
+Optional alerts are sent through [ntfy](https://ntfy.sh) (or your own ntfy server) only when you configure a topic.
+
+## License
+
+MIT, see `LICENSE`.

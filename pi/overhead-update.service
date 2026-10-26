@@ -1,0 +1,9 @@
+[Unit]
+Description=Overhead: update page and logger from GitHub (md5-verified)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/overhead-update.sh
+Nice=10

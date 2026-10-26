@@ -1,0 +1,6 @@
+# /etc/default/interesting-logger : read by interesting-logger.service
+# Push alerts via ntfy are OFF unless NTFY_TOPIC is set. Pick a long, unguessable topic name;
+# anyone who knows it can read your alerts. Then: sudo systemctl restart interesting-logger
+NTFY_TOPIC=
+#NTFY_SERVER=https://ntfy.sh
+#NTFY_TAGS=Emergency,Hijack,Radio,Medevac,Military,Helicopter
