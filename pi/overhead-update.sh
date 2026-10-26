@@ -50,14 +50,21 @@ if update pi/overhead-digest.py /usr/local/bin/overhead-digest.py; then
   python3 /usr/local/bin/overhead-digest.py --dry-run --dir "$PAGE_DIR/ot" --env /dev/null >/dev/null \
     || { log "new digest failed dry-run, restoring backup"; [ -f /usr/local/bin/overhead-digest.py.bak ] && mv -f /usr/local/bin/overhead-digest.py.bak /usr/local/bin/overhead-digest.py; }
 fi
+# nightly sky poster (script + units)
+if update pi/overhead-poster.py /usr/local/bin/overhead-poster.py; then
+  chmod 0755 /usr/local/bin/overhead-poster.py
+  python3 /usr/local/bin/overhead-poster.py --selftest --dir "$PAGE_DIR/ot" >/dev/null \
+    || { log "new poster failed selftest, restoring backup"; [ -f /usr/local/bin/overhead-poster.py.bak ] && mv -f /usr/local/bin/overhead-poster.py.bak /usr/local/bin/overhead-poster.py; }
+fi
 RELOAD=
-for u in overhead-digest.service overhead-digest.timer overhead-update.service overhead-update.timer; do
+for u in overhead-poster.service overhead-poster.timer overhead-digest.service overhead-digest.timer overhead-update.service overhead-update.timer; do
   if update "pi/$u" "/etc/systemd/system/$u"; then
-    [ "$u" = overhead-digest.service ] && [ "$PAGE_DIR" != /usr/local/share/tar1090/html ] && sed -i "s|/usr/local/share/tar1090/html/ot|$PAGE_DIR/ot|" "/etc/systemd/system/$u"
+    case "$u" in overhead-digest.service|overhead-poster.service) [ "$PAGE_DIR" != /usr/local/share/tar1090/html ] && sed -i "s|/usr/local/share/tar1090/html/ot|$PAGE_DIR/ot|" "/etc/systemd/system/$u";; esac
     RELOAD=1; fi
 done
 [ -n "$RELOAD" ] && systemctl daemon-reload
 [ -f /etc/systemd/system/overhead-digest.timer ] && ! systemctl is-enabled -q overhead-digest.timer 2>/dev/null && systemctl enable --now overhead-digest.timer && log "digest timer enabled"
+[ -f /etc/systemd/system/overhead-poster.timer ] && ! systemctl is-enabled -q overhead-poster.timer 2>/dev/null && systemctl enable --now overhead-poster.timer && log "poster timer enabled"
 # self-update last: the running sh keeps reading the old inode, the new file is used next night
 update pi/overhead-update.sh /usr/local/bin/overhead-update.sh && chmod 0755 /usr/local/bin/overhead-update.sh || true
 

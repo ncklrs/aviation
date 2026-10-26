@@ -143,6 +143,39 @@
   .st-row i{display:block;height:calc(var(--u)*.9);background:var(--ink,#000)}
   .st-row b{text-align:right;font-weight:400}
   html.night body.eink{filter:none}
+  /* Hangar */
+  #main.cardsv{display:flex;flex-direction:column;gap:calc(var(--u)*1)}
+  .hstats{display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6em 1.4em;font-size:calc(var(--u)*1.25);border-bottom:2px solid var(--ink);padding-bottom:calc(var(--u)*.6)}
+  .hstats .bar{display:inline-block;width:6em;height:.7em;border:1px solid var(--ink);vertical-align:middle;margin:0 .3em}
+  .hstats .bar i{display:block;height:100%;background:var(--ink)}
+  .hgrid{flex:1;display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:1fr;gap:calc(var(--u)*1)}
+  .hcard{position:relative;border:2px solid var(--ink);border-radius:calc(var(--u)*.8);padding:calc(var(--u)*.8);display:flex;flex-direction:column;overflow:hidden;background:#fff}
+  .hcard.r-epic,.hcard.r-legendary{border-width:4px} .hcard.r-legendary{outline:2px solid var(--ink);outline-offset:-9px}
+  .hcard>*{position:relative} .hcard .holo{position:absolute;inset:0;width:100%;height:100%;opacity:.35;pointer-events:none}
+  .hcard .holo~*{z-index:1}
+  .hc-top{display:flex;justify-content:space-between;align-items:baseline;gap:.4em} .hc-top b{font-size:calc(var(--u)*2.4)}
+  .badge{font-family:Helvetica,Arial,sans-serif;font-size:calc(var(--u)*.95);letter-spacing:.1em;border:1px solid var(--ink);padding:.15em .5em;background:#fff;white-space:nowrap}
+  .r-epic .badge,.r-legendary .badge{background:#000;color:#fff}
+  .hc-art{flex:1;display:flex;align-items:center;background:#fff;border:1px solid var(--ink);margin:calc(var(--u)*.5) 0;min-height:0}
+  .hc-art svg{width:100%;height:auto}
+  .hc-name{font-size:calc(var(--u)*1.2);font-style:italic;background:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hc-facts{display:flex;flex-direction:column;font-size:calc(var(--u)*1);gap:.15em;background:#fff;margin-top:.3em}
+  #newcard{display:flex;flex-wrap:wrap;align-items:center;gap:.4em 1.2em;border:3px solid var(--ink);padding:calc(var(--u)*.6) calc(var(--u)*1);margin-bottom:calc(var(--u)*1);font-size:calc(var(--u)*1.35);
+    background:repeating-linear-gradient(45deg,#fff 0 6px,#fff 6px 9px)}
+  #newcard>b{font-size:1.4em;background:#000;color:#fff;padding:.05em .4em}
+  /* Posters */
+  #main.posterv,#main.postersv{display:block}
+  .poster{height:100%;display:flex;justify-content:center} .poster svg{height:100%;width:auto;max-width:100%}
+  #main.postersv{min-height:0;overflow:hidden} .pgrid{height:100%;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,minmax(0,1fr));gap:calc(var(--u)*1.2)}
+  .pthumb{display:flex;flex-direction:column;gap:.3em;color:inherit;text-decoration:none;font-size:calc(var(--u)*.95)}
+  .pthumb{min-height:0} .pthumb img{flex:1;min-height:0;width:100%;object-fit:contain}
+  body.eink .skyposter .poster-bg{fill:#fff} body.eink .skyposter *{stroke-opacity:1!important;fill-opacity:1!important}
+  body.eink .skyposter .trk{stroke:#000!important} body.eink .pthumb img{filter:grayscale(1) contrast(1.6) brightness(1.12)}
+  /* Sky radio */
+  #onair{position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--u)*1.6);font-size:calc(var(--u)*1.2);padding:.4em .9em;background:#fff;color:#000;border:1px solid #000;border-radius:2em;z-index:9;cursor:pointer}
+  #onair i{display:inline-block;width:.7em;height:.7em;border-radius:50%;border:1px solid #000;margin-right:.5em;vertical-align:-.05em}
+  #onair.on i{background:#c00;border-color:#c00;animation:onair 2.4s ease-in-out infinite} @keyframes onair{50%{opacity:.25}}
+  body.eink .hcard .holo{opacity:1} body.eink #onair{display:none}
 </style>
 </head>
 <body>
@@ -237,6 +270,8 @@ const TYPES = [
   [/^(C17$|C5M$|IL76|Y20)/,'heavy-airlifter'],
   [/^(C130|C30J|C27J|A400|C160|CN35|C295|KC39|AN12|AN70|Y8|Y9|KC2|C2$)/,'milcargo'],
   [/^(F16|F15|F18|FA18|F35|F22|F14|F4$|F5$|F117|A10$|T38|T7$|T45|EUFI|RFAL|AV8B|M346|L39|HAWK|JAS3|TOR$|SU2|SU3|MG29)/,'fighter'],
+  [/^(GA[5-8]C|G[5-8][05]0$|GLF[2-7]|GLEX|GL5T|GL6T|GL7T|GL8T|FA7X|FA8X|FA6X|F900|F2TH|CL35|CL60|G150|G200|G250|GALX|ASTR)/,'bizjet'],  // large-cabin bizjets (G500-G800, Global, Falcon, Challenger) before any airliner rule
+  [/^(B52|B1B?|B2|E3TF|E3CF|E6|R135|K35R|E4B?|E8|VC25|KC10|KC46|K46|AN124|A225|AN22)$/,'widebody'],  // big military jets
   [/^(EC35|EC45|H135|H145|H45|EC30|H130|A109|A119|A169|AW169|A139|AW139|B429|AS65|EC55|EC65|EC75|BK17)/,'medheli'],
   [/^(E17\d|E19\d|E75|E29)/,'e-jet'],
   [/^(BCS1|BCS3)/,'a220'],
@@ -261,6 +296,7 @@ function shapeFor(a){
   const t=(a.t||'').toUpperCase().trim();
   if(t && !/^(C17|C5M)$/.test(t) && WIDE.test(t)) return 'widebody';
   if(t) for(const [re,s] of TYPES) if(re.test(t)) return s;
+  if(/GULFSTREAM|GLOBAL \d|BD-700|FALCON|CHALLENGER|LEARJET|CITATION|PHENOM/i.test(a.desc||'')) return /LEARJET|CITATION|PHENOM/i.test(a.desc)?'bizjet-light':'bizjet';
   const c=(a.category||'').toUpperCase();
   const mil=(a.dbFlags||0)&1;
   if(c==='A7') return 'heli';
@@ -562,6 +598,217 @@ function renderRecent(entries,nowS){
   }).join('<span class="sep">/</span>');
 }
 
+/* ---------- Hangar: plane trading cards (?view=cards; in the rotation with ?cards=1) ----------
+   The Pi logger keeps ot/collection.json (first time each type/tail is seen, passes, closest pass; no positions).
+   Without it the page keeps its own small collection in localStorage. Rarity mirrors pi/interesting_logger.py. */
+const CARDS_ON=/^(1|true|yes|on)$/i.test(String(QS.get('cards')??((window.OVERHEAD_CONFIG||{}).cards??'')))||QS.get('view')==='cards';
+const TIERS=['Common','Uncommon','Rare','Epic','Legendary'], TIER_MARK={Common:'●',Uncommon:'●●',Rare:'★',Epic:'★★',Legendary:'★★★'};
+const LEG_RE=/^(V22|H47|CH47|B52|U2|E4|E4B|E6|VC25|A124|AN124|A225|AN22|B1|B1B|B2|E3TF|E3CF|R135|E8|C5M|SR71|BLCF|A3ST|A337|B742|CONI|B17|B29|DC3|C47|SPIT|P51|CORS|ZEP)$/;
+const EPIC_RE=/^(F16|F15|F18|FA18|F35|F22|F14|A10|T38|T7|T6|T45|C130|C30J|C17|KC10|K35R|KC46|K46|P8|E2|C2|C27J|A400|EUFI|RFAL)$/;
+const CHECK_EXTRA='V22 H47 B52 U2 E4B E6 VC25 A124 A225 B1 B2 E3TF R135 C5M C17 C130 C30J K35R KC46 P8 F16 F18 F35 A10 T38 H60 UH60 R22 R44 R66 EC35 EC45 A109 A139 B06 B407 S76 DHC2 DHC6 C82R B744 B748 A388 A346 MD11 DC10 B722'.split(' ');
+function rarity(t,tails,mil,rotor){ t=(t||'').toUpperCase();
+  if(t&&LEG_RE.test(t)) return 'Legendary'; if(mil||rotor||(t&&EPIC_RE.test(t))) return 'Epic';
+  if(tails>=25) return 'Common'; if(COMMON_TYPES.has(t)) return tails>=8?'Common':'Uncommon'; return tails>=8?'Uncommon':'Rare'; }
+const HG_KEY='hangar:v1';
+function hangarLocal(live,home,nowS){          // browser fallback collection (types only + 2000 tails)
+  let C={types:{},tails:{},unlocks:[]}; try{ C=JSON.parse(localStorage.getItem(HG_KEY))||C; }catch(e){}
+  for(const a of live||[]){ const t=(a.t||'').toUpperCase().trim(); if(!a.hex||!t) continue;
+    let T=C.types[t]; if(!T){ T=C.types[t]={first:nowS|0,last:0,n:0,tails:0,best_km:null,mil:!!((a.dbFlags||0)&1),rotor:HELIS.has(shapeFor(a))&&!/^V22/.test(t),desc:(a.desc||'').slice(0,40)};
+      C.unlocks.push({t,at:nowS|0}); C.unlocks=C.unlocks.slice(-30); }
+    let L=C.tails[a.hex]; if(!L){ L=C.tails[a.hex]={t,first:nowS|0,last:0,n:0}; T.tails++; }
+    if(nowS-L.last>1800){ L.n++; T.n++; } L.last=T.last=nowS|0;
+    const d=nm(home,a)*1.852; if(!isNaN(d)&&d<700&&(T.best_km==null||d<T.best_km)){ T.best_km=Math.round(d*100)/100; T.best_id=(a.flight||'').trim()||a.r||a.hex; } }
+  const k=Object.keys(C.tails); if(k.length>2000){ k.sort((x,y)=>C.tails[y].last-C.tails[x].last).slice(2000).forEach(h=>delete C.tails[h]); }
+  try{ localStorage.setItem(HG_KEY,JSON.stringify(C)); }catch(e){}
+  return hangarDoc(C,nowS,'browser');
+}
+function hangarDoc(C,nowS,src){
+  const chk=new Set([...COMMON_TYPES,...CHECK_EXTRA]), types=C.types||{};
+  for(const [t,T] of Object.entries(types)) if(!T.rarity) T.rarity=rarity(t,T.tails,T.mil,T.rotor);
+  (C.unlocks||[]).forEach(u=>{ if(!u.rarity&&types[u.t]) u.rarity=types[u.t].rarity; });
+  return Object.assign({checklist:chk.size,checklist_got:Object.keys(types).filter(t=>chk.has(t)).length,src},C,{types,now:C.now||nowS});
+}
+function fmtDay(s){ return new Date(s*1000).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}); }
+function hatch(tier,id){            // e-ink friendly "holo": line hatching for Rare and above
+  const L={Rare:[45],Epic:[45,-45],Legendary:[45,-45,0]}[tier]; if(!L) return '';
+  return `<svg class="holo" preserveAspectRatio="none" viewBox="0 0 100 100"><defs>${L.map((a,i)=>`<pattern id="h${id}${i}" width="${tier==='Legendary'?3:4}" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(${a})"><path d="M0 0V4" stroke="#000" stroke-width=".5"/></pattern>`).join('')}</defs>${L.map((a,i)=>`<rect width="100" height="100" fill="url(#h${id}${i})"/>`).join('')}</svg>`;
+}
+function hcard(t,T,i){
+  const tier=T.rarity||'Common', k=shapeFor({t,category:T.rotor?'A7':'',dbFlags:T.mil?1:0,desc:T.desc});
+  const name=T.desc||LABEL[k]||'';
+  return `<div class="hcard r-${tier.toLowerCase()}">${hatch(tier,i)}
+    <div class="hc-top"><b class="mono">${esc(t)}</b><span class="badge">${TIER_MARK[tier]} ${tier.toUpperCase()}</span></div>
+    <div class="hc-art">${svg({t,track:90,category:T.rotor?'A7':'',dbFlags:T.mil?1:0,desc:T.desc})}</div>
+    <div class="hc-name">${esc(name)}</div>
+    <div class="hc-facts mono"><span>First spotted <b>${fmtDay(T.first)}</b></span><span>Sightings <b>${T.n||1}</b>${T.tails>1?` · ${T.tails} tails`:''}</span>
+      <span>Best pass <b>${T.best_km!=null?dist(T.best_km/1.852):'—'}</b>${T.best_id?` · ${esc(T.best_id)}`:''}</span></div></div>`;
+}
+function renderCards(H,nowS){
+  const M=document.getElementById('main'); renderRecent([],0); M.className='cardsv';
+  document.getElementById('where').textContent='Hangar';
+  const E=Object.entries((H&&H.types)||{});
+  if(!E.length){ M.innerHTML=`<div class="quiet">Hangar is empty<small class="kicker">every new aircraft type you see becomes a card</small></div>`; return; }
+  const by={}; TIERS.forEach(r=>by[r]=0); E.forEach(([,T])=>by[T.rarity]++);
+  E.sort((a,b)=>TIERS.indexOf(b[1].rarity)-TIERS.indexOf(a[1].rarity)||b[1].first-a[1].first);
+  const per=9, pages=Math.ceil(E.length/per), pg=QS.has('page')?Math.max(0,Math.min(pages-1,(+QS.get('page')||1)-1)):Math.floor((nowS/(WEEK_S||60)))%pages;
+  const pct=Math.round(100*H.checklist_got/Math.max(1,H.checklist));
+  M.innerHTML=`<div class="hstats mono"><span><b>${E.length}</b> types · <b>${Object.keys(H.tails||{}).length}</b> tails</span>
+    <span>Checklist <b>${H.checklist_got}/${H.checklist}</b> <i class="bar"><i style="width:${pct}%"></i></i> ${pct}%</span>
+    <span>${TIERS.slice().reverse().map(r=>`${TIER_MARK[r]} ${by[r]}`).join(' &nbsp;')}</span></div>
+    <div class="hgrid">${E.slice(pg*per,pg*per+per).map(([t,T],i)=>hcard(t,T,i)).join('')}</div>`;
+  document.getElementById('count').textContent=`page ${pg+1} of ${pages}${H.src==='browser'?' · this browser\'s log':''}`;
+}
+function newCardBanner(H,nowS){       // "NEW CARD!" on the live view for 30 min after an unlock
+  let b=document.getElementById('newcard'); const u=(H&&H.unlocks||[]).filter(u=>nowS-u.at<1800&&nowS>=u.at).slice(-1)[0];
+  if(!u||rotView()!=='live'){ if(b) b.remove(); return; }
+  if(!b){ b=document.createElement('div'); b.id='newcard'; document.getElementById('main').before(b); }
+  const T=H.types[u.t]||{}, tier=T.rarity||u.rarity||'Rare';
+  b.className='mono r-'+tier.toLowerCase();
+  b.innerHTML=`<b>NEW CARD!</b> <span>${esc(u.t)}${T.desc?' · '+esc(T.desc):''}</span> <span class="badge">${TIER_MARK[tier]} ${tier.toUpperCase()}</span> <span>${Object.keys(H.types).length} types · ${H.checklist_got}/${H.checklist} checklist</span>`;
+}
+function DEMO_COLLECTION(nowS){
+  const D=86400, rows=[['V22',1,1,3.1,0,1,'BELL-BOEING V-22 OSPREY','VADER21'],['H47',2,2,4.4,1,1,'BOEING CH-47 CHINOOK','DEMO47'],['B52',1,1,18.2,1,0,'BOEING B-52H','DOOM31'],
+    ['C17',5,4,9.1,1,0,'BOEING C-17A GLOBEMASTER III','RCH431'],['UH60',6,3,2.2,1,1,'SIKORSKY UH-60 BLACK HAWK','PAT12'],['R44',9,3,2.4,0,1,'ROBINSON R-44','N0HELO'],['F16',3,3,11.0,1,0,'GENERAL DYNAMICS F-16','VIPER1'],
+    ['GA8C',2,1,6.3,0,0,'GULFSTREAM G-8 G800','N0FAKE8'],['DHC2',2,1,5.5,0,0,'DE HAVILLAND DHC-2 BEAVER','N0FAKE4'],['A388',1,1,48.0,0,0,'AIRBUS A-380-800','UAE231'],
+    ['B748',3,2,31.0,0,0,'BOEING 747-8','CLX795'],['EC45',12,4,1.9,0,1,'AIRBUS H145','LIFE2'],['C68A',14,9,3.6,0,0,'CESSNA 680A LATITUDE','EJA412'],
+    ['B789',40,31,12.4,0,0,'BOEING 787-9','UAL88'],['CRJ9',88,41,5.2,0,0,'BOMBARDIER CRJ-900','EDV5012'],['B38M',190,96,8.8,0,0,'BOEING 737 MAX 8','SWA439'],
+    ['C172',61,22,0.9,0,0,'CESSNA 172','N0FAKE1'],['PA28',30,15,1.4,0,0,'PIPER PA-28','N0FAKE2'],['BE58',4,3,2.6,0,0,'BEECH 58 BARON','N0FAKE3'],['A321',120,70,9.9,0,0,'AIRBUS A-321','AAL1'],['E75L',75,38,6.1,0,0,'EMBRAER 175','SKW33']];
+  const types={}, tails={}; rows.forEach(([t,n,tl,km,mil,rot,desc,id],i)=>{ types[t]={first:nowS-(i*3.7+(t==='V22'?0.01:1))*D|0,last:nowS-i*3000|0,n,tails:tl,best_km:km,best_id:id,mil:!!mil,rotor:!!rot&&t!=='V22',desc};
+    for(let j=0;j<tl;j++) tails['f'+i+'x'+j]={t}; });
+  types.V22.first=nowS-600;
+  return hangarDoc({types,tails,unlocks:[{t:'V22',at:nowS-600}]},nowS,'demo');
+}
+
+/* ---------- Daily sky poster (pi/overhead-poster.py -> ot/posters/YYYY-MM-DD.svg + index.json) ---------- */
+async function renderPoster(ob,date,demo){
+  const M=document.getElementById('main'); renderRecent([],0); M.className='posterv';
+  document.getElementById('where').textContent='Sky poster';
+  let idx=null; try{ idx=await getJSON(ob+'posters/index.json'); }catch(e){}
+  const list=(idx&&idx.posters)||[], P=date?list.find(p=>p.date===date)||{date}:list[0];
+  const url=P?ob+'posters/'+P.date+'.svg':(demo?'sample-poster.svg':null);
+  let txt=null; if(url){ try{ const r=await fetch(url,{cache:'no-cache'}); if(r.ok) txt=await r.text(); }catch(e){} }
+  if(!txt&&demo){ try{ const r=await fetch('sample-poster.svg'); if(r.ok) txt=await r.text(); }catch(e){} }
+  if(!txt){ M.innerHTML=`<div class="quiet">No poster yet<small class="kicker">the Pi draws one every night at 23:55</small></div>`; return; }
+  M.innerHTML=`<div class="poster">${txt.replace(/^<\?xml[^>]*>/,'')}</div>`;
+  document.getElementById('count').textContent=P?(P.date+(P.aircraft?` · ${P.aircraft} aircraft`:'')):'sample';
+}
+async function renderPosters(ob,demo){
+  const M=document.getElementById('main'); renderRecent([],0); M.className='postersv';
+  document.getElementById('where').textContent='Sky posters';
+  let idx=null; try{ idx=await getJSON(ob+'posters/index.json'); }catch(e){}
+  let list=((idx&&idx.posters)||[]).slice().sort((a,b)=>b.date<a.date?-1:1);
+  if(!list.length&&demo) list=[{date:'sample',aircraft:302,rarest:'V22',src:'sample-poster.svg'}];
+  if(!list.length){ M.innerHTML=`<div class="quiet">No posters yet<small class="kicker">one is drawn every night at 23:55</small></div>`; return; }
+  const per=9, pages=Math.ceil(list.length/per), pg=Math.max(0,Math.min(pages-1,(+QS.get('page')||1)-1));
+  M.innerHTML=`<div class="pgrid">${list.slice(pg*per,pg*per+per).map(p=>`<a class="pthumb" href="?view=poster&poster=${esc(p.date)}">
+    <img src="${esc(p.src||ob+'posters/'+p.date+'.svg')}" alt="">
+    <span class="mono"><b>${esc(p.date)}</b> · ${p.aircraft||0} aircraft${p.rarest?` · ${esc(p.rarest)}`:''}</span></a>`).join('')}</div>`;
+  document.getElementById('count').textContent=`${list.length} poster${list.length>1?'s':''} · page ${pg+1} of ${pages}`;
+}
+
+/* ---------- Sky radio (?radio=1; ?vol=0..1; ?radio=night keeps playing after dark) ----------
+   Ambient WebAudio, no assets. Every aircraft in range is a voice: pitch from altitude on a pentatonic scale,
+   volume from distance, slow stereo pan from bearing, timbre by class. Tap once to start (iOS). */
+const RADIO_Q=String(QS.get('radio')??((window.OVERHEAD_CONFIG||{}).radio??''));
+const RADIO_ON=!CFG.eink&&/^(1|true|yes|on|night)$/i.test(RADIO_Q), RADIO_NIGHT=/^night$/i.test(RADIO_Q);
+const RADIO_VOL=(v=>isNaN(v)?.6:Math.max(0,Math.min(1,v>1?v/100:v)))(parseFloat(QS.get('vol')));
+const PENTA=[0,2,4,7,9], STEP_S=.8, MAXV=10;
+function rHash(s){ let h=7; for(const c of String(s)) h=(h*31+c.charCodeAt(0))>>>0; return h; }
+function rKind(a){ const k=shapeFor(a), t=(a.t||'').toUpperCase();
+  if(HELIS.has(k)&&!/^V22/.test(t)) return 'heli'; if(((a.dbFlags||0)&1)||/fighter|milcargo|heavy-airlifter|tiltrotor/.test(k)) return 'mil';
+  if(/lowwing|highwing|cessna|twin|pc12|turboprop/.test(k)) return 'ga'; return 'jet'; }
+function rFreq(ft,step){ const i=Math.max(0,Math.min(14,Math.round((isNaN(ft)?20000:ft)/45000*14)))+step, o=Math.floor(i/5), n=((i%5)+5)%5;
+  return 110*Math.pow(2,(PENTA[n]+12*o)/12); }
+function radioGraph(ctx){
+  const R={ctx,voices:new Map(),step:0}; R.master=ctx.createGain(); R.master.gain.value=0;
+  const comp=ctx.createDynamicsCompressor(); comp.threshold.value=-20; comp.ratio.value=3;
+  const len=ctx.sampleRate*3, ir=ctx.createBuffer(2,len,ctx.sampleRate); let seed=1;
+  for(let c=0;c<2;c++){ const d=ir.getChannelData(c); for(let i=0;i<len;i++){ seed=(seed*16807)%2147483647; d[i]=(seed/1073741823-1)*Math.pow(1-i/len,3); } }
+  const rev=ctx.createConvolver(); rev.buffer=ir; const wet=ctx.createGain(); wet.gain.value=.45;
+  R.bus=ctx.createGain(); R.bus.connect(comp); R.bus.connect(rev).connect(wet).connect(comp); comp.connect(R.master).connect(ctx.destination);
+  return R;
+}
+function radioUpdate(R,list,home,t0){          // list: live aircraft; keeps the nearest MAXV as voices
+  const ctx=R.ctx, now=t0??ctx.currentTime, seen=new Set();
+  const L=(list||[]).map(a=>({a,d:nm(home,a)})).filter(x=>!isNaN(x.d)&&x.d<80&&!isNaN(alt(x.a))).sort((x,y)=>x.d-y.d).slice(0,MAXV);
+  for(const {a,d} of L){ seen.add(a.hex);
+    const r=Math.PI/180, b=Math.atan2(Math.sin((a.lon-home.lon)*r)*Math.cos(a.lat*r),Math.cos(home.lat*r)*Math.sin(a.lat*r)-Math.sin(home.lat*r)*Math.cos(a.lat*r)*Math.cos((a.lon-home.lon)*r));
+    let v=R.voices.get(a.hex);
+    if(!v){ const kind=rKind(a), h=rHash(a.hex); v={kind,off:h%16,period:{ga:5,jet:13,mil:8,heli:0}[kind]+(h%3),
+        pan:ctx.createStereoPanner?ctx.createStereoPanner():null,g:ctx.createGain()}; v.g.gain.value=0;
+      if(v.pan){ v.pan.connect(v.g); v.in=v.pan; } else v.in=v.g; v.g.connect(R.bus);
+      if(kind==='heli') heliStart(R,v,a,now); R.voices.set(a.hex,v); }
+    v.ft=alt(a); v.vol=Math.max(.04,Math.pow(Math.max(0,1-d/80),1.6));
+    if(v.pan) v.pan.pan.setTargetAtTime(Math.sin(b)*.8,now,4);
+    v.g.gain.setTargetAtTime(v.vol,now,3);
+    if(v.kind==='heli') v.lp.frequency.setTargetAtTime(120+v.vol*260,now,3);
+  }
+  for(const [hx,v] of R.voices) if(!seen.has(hx)){ v.g.gain.setTargetAtTime(0,now,3); (v.nodes||[]).forEach(n=>{ try{ n.stop(now+15); }catch(e){} });
+    setTimeout(()=>{ try{ v.g.disconnect(); }catch(e){} },16000); R.voices.delete(hx); }
+  return R.voices.size;
+}
+function heliStart(R,v,a,t){                    // low rumble, amplitude-pulsed at a rotor-ish rate
+  const c=R.ctx, tandem=/^(H47|CH47)/.test((a.t||'').toUpperCase()), o=c.createOscillator(), o2=c.createOscillator(), lp=c.createBiquadFilter(), am=c.createGain(), lfo=c.createOscillator(), lg=c.createGain();
+  o.type='sawtooth'; o.frequency.value=tandem?41:55; o2.type='triangle'; o2.frequency.value=(tandem?41:55)*1.5;
+  lp.type='lowpass'; lp.frequency.value=200; lp.Q.value=4; am.gain.value=.5; lfo.frequency.value=tandem?3.6:5.8; lg.gain.value=.5;
+  lfo.connect(lg).connect(am.gain); const pre=c.createGain(); pre.gain.value=.35;
+  o.connect(lp); o2.connect(lp); lp.connect(am).connect(pre).connect(v.in);
+  [o,o2,lfo].forEach(n=>n.start(t)); v.nodes=[o,o2,lfo]; v.lp=lp;
+}
+function radioNote(R,v,t,f){
+  const c=R.ctx, g=c.createGain(), out=[]; g.connect(v.in); const P=(x)=>{ x.connect(g); out.push(x); return x; };
+  if(v.kind==='ga'){ const o=P(c.createOscillator()); o.type='sine'; o.frequency.value=f*2; const o2=P(c.createOscillator()); o2.type='sine'; o2.frequency.value=f*4; 
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.22,t+.012); g.gain.exponentialRampToValueAtTime(.001,t+2.2); var end=t+2.4; }
+  else if(v.kind==='jet'){ const lp=c.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900; lp.connect(g);
+    [-7,7].forEach(dt=>{ const o=c.createOscillator(); o.type='triangle'; o.frequency.value=f; o.detune.value=dt; o.connect(lp); out.push(o); });
+    const nb=c.createBuffer(1,c.sampleRate*2,c.sampleRate), d=nb.getChannelData(0); let s=rHash(t); for(let i=0;i<d.length;i++){ s=(s*16807)%2147483647; d[i]=s/1073741823-1; }
+    const ns=c.createBufferSource(); ns.buffer=nb; ns.loop=true; const bp=c.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=f*4; bp.Q.value=2; const ng=c.createGain(); ng.gain.value=.25;
+    ns.connect(bp).connect(ng).connect(g); out.push(ns);
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.12,t+2.5); g.gain.setValueAtTime(.12,t+5); g.gain.linearRampToValueAtTime(0,t+9.5); var end=t+10; }
+  else { const lp=c.createBiquadFilter(); lp.type='lowpass'; lp.Q.value=1.5; lp.connect(g); lp.frequency.setValueAtTime(300,t); lp.frequency.linearRampToValueAtTime(1600,t+1.2); lp.frequency.linearRampToValueAtTime(500,t+3.5);
+    const o=c.createOscillator(); o.type='sawtooth'; o.frequency.value=f; o.connect(lp); out.push(o); const o2=c.createOscillator(); o2.type='sawtooth'; o2.frequency.value=f*1.5; o2.detune.value=4; const g2=c.createGain(); g2.gain.value=.4; o2.connect(g2).connect(lp); out.push(o2);
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.1,t+.25); g.gain.linearRampToValueAtTime(.08,t+1.5); g.gain.exponentialRampToValueAtTime(.001,t+4); var end=t+4.2; }
+  out.forEach(o=>{ o.start(t); o.stop(end); });
+}
+const MELODY=[0,2,1,3,0,-1,1,2];
+function radioSchedule(R,from,to){              // slow clock: one step every STEP_S seconds
+  let t=Math.ceil(from/STEP_S)*STEP_S;
+  for(;t<to;t+=STEP_S){ const s=Math.round(t/STEP_S);
+    for(const v of R.voices.values()){ if(!v.period||(s+v.off)%v.period) continue;
+      radioNote(R,v,t,rFreq(v.ft,v.kind==='jet'?0:MELODY[(Math.floor(s/v.period)+v.off)%MELODY.length])); } }
+  return t;
+}
+let RADIO=null;
+function radioIndicator(state,n){ let el=document.getElementById('onair');
+  if(!el){ el=document.createElement('div'); el.id='onair'; el.className='mono'; document.body.appendChild(el); }
+  el.className='mono '+state; el.innerHTML=state==='on'?`<i></i>ON AIR · ${n} voice${n===1?'':'s'}`:state==='night'?'<i></i>radio asleep (night)':'<i></i>📻 tap to tune in';
+  if(state==='tap') el.onclick=()=>{}; }
+function radioTick(list,home,nowMs){
+  if(!RADIO_ON||!home) return; const c=audioCtx(); if(!c) return;
+  if(c.state!=='running'){ radioIndicator('tap',0); return; }
+  if(!RADIO){ RADIO=radioGraph(c); RADIO.next=c.currentTime+.1;
+    setInterval(()=>{ RADIO.next=radioSchedule(RADIO,Math.max(RADIO.next,c.currentTime),c.currentTime+1.5); },500); }
+  const n=radioUpdate(RADIO,list,home), asleep=!RADIO_NIGHT&&isNight(home,nowMs);
+  RADIO.master.gain.setTargetAtTime(asleep?0:RADIO_VOL,c.currentTime,asleep?20:2);
+  radioIndicator(asleep?'night':'on',n);
+}
+function radioInit(){ if(!RADIO_ON) return;
+  const unlock=()=>{ const c=audioCtx(); if(c) c.resume().then(()=>{ if(c.state==='running'&&LAST) radioTick((LAST.data&&LAST.data.aircraft)||[],LAST.home,Date.now()); }); };
+  ['pointerdown','touchend','keydown','click'].forEach(e=>document.addEventListener(e,unlock,{passive:true}));
+  const c=audioCtx(); radioIndicator(c&&c.state==='running'?'on':'tap',0);
+}
+window.__radioRender=async function(sec=20){    // offline render of the demo sky -> base64 WAV (used for the sample)
+  const sr=44100, c=new OfflineAudioContext(2,sr*sec,sr), R=radioGraph(c); R.master.gain.value=RADIO_VOL;
+  radioUpdate(R,(LAST.data.aircraft||[]),LAST.home,0); for(const v of R.voices.values()){ v.g.gain.cancelScheduledValues(0); v.g.gain.setValueAtTime(v.vol,0); }
+  R.master.gain.setValueAtTime(0,0); R.master.gain.linearRampToValueAtTime(RADIO_VOL,2); R.master.gain.setValueAtTime(RADIO_VOL,sec-3); R.master.gain.linearRampToValueAtTime(0,sec-.05);
+  radioSchedule(R,0.05,sec-4); const buf=await c.startRendering(), n=buf.length, L=buf.getChannelData(0), Rr=buf.getChannelData(1);
+  let pk=1e-6; for(let i=0;i<n;i++) pk=Math.max(pk,Math.abs(L[i]),Math.abs(Rr[i])); const k=Math.min(1,.89/pk)*32767;
+  const b=new DataView(new ArrayBuffer(44+n*4)), W=(o,s)=>[...s].forEach((ch,i)=>b.setUint8(o+i,ch.charCodeAt(0)));
+  W(0,'RIFF'); b.setUint32(4,36+n*4,true); W(8,'WAVEfmt '); b.setUint32(16,16,true); b.setUint16(20,1,true); b.setUint16(22,2,true); b.setUint32(24,sr,true); b.setUint32(28,sr*4,true); b.setUint16(32,4,true); b.setUint16(34,16,true); W(36,'data'); b.setUint32(40,n*4,true);
+  for(let i=0;i<n;i++){ b.setInt16(44+i*4,L[i]*k,true); b.setInt16(46+i*4,Rr[i]*k,true); }
+  const u=new Uint8Array(b.buffer); let s=''; for(let i=0;i<u.length;i+=32768) s+=String.fromCharCode.apply(null,u.subarray(i,i+32768)); return {b64:btoa(s),peak:pk};
+};
+
 /* ---------- data ---------- */
 const DEMO_INTERESTING = {"now": 1793019600, "aircraft": [{"hex": "ae0001", "flight": "RCH431", "r": "05-5140", "t": "C17", "desc": "Boeing C-17A Globemaster III", "ownOp": "United States Air Force", "dbFlags": 1, "why": ["Military", "Widebody"], "last": 1793001600, "maxAlt": 31000, "category": "A5", "day": "2026-10-26", "first": 1793001000}, {"hex": "fa0101", "flight": "N0FAKE7", "t": "BE36", "desc": "Beech A36 Bonanza", "why": ["Emergency 7700"], "last": 1792836000, "maxAlt": 4500, "category": "A1", "day": "2026-10-24", "first": 1792835400}, {"hex": "ae0002", "flight": "PAT21", "t": "H60", "desc": "Sikorsky UH-60 Black Hawk", "ownOp": "United States Army", "dbFlags": 1, "why": ["Military", "Helicopter"], "last": 1792926000, "maxAlt": 1200, "category": "A7", "day": "2026-10-25", "first": 1792925400}, {"hex": "fa0102", "flight": "GTI8203", "r": "N0FAKE8", "t": "B748", "desc": "Boeing 747-8F", "ownOp": "Atlas Air", "why": ["Four-engine"], "last": 1792760400, "maxAlt": 37000, "category": "A5", "day": "2026-10-23", "first": 1792759800}, {"hex": "fa0103", "flight": "N0FAKE9", "t": "DHC2", "desc": "de Havilland Canada DHC-2 Beaver", "why": ["Rare type"], "last": 1792670400, "maxAlt": 2500, "category": "A1", "day": "2026-10-22", "first": 1792669800}, {"hex": "fa0104", "flight": "N0FAKE10", "t": "GLF6", "desc": "Gulfstream G650", "dbFlags": 4, "why": ["PIA", "Very high"], "last": 1792900800, "maxAlt": 51000, "category": "A2", "day": "2026-10-25", "first": 1792900200}, {"hex": "fa0105", "flight": "LN2", "t": "EC35", "desc": "Airbus Helicopters H135", "ownOp": "Demo Air Medical", "why": ["Medevac", "Helicopter"], "last": 1793008800, "maxAlt": 1500, "category": "A7", "day": "2026-10-26", "first": 1793008200}, {"hex": "fa0106", "flight": "N0FAKE11", "t": "P51", "desc": "North American P-51 Mustang", "why": ["Rare type"], "last": 1792501200, "maxAlt": 6500, "category": "A1", "day": "2026-10-20", "first": 1792500600}]};
 const DEMO_AIRCRAFT = /*DEMO*/{"now": 1793019600, "aircraft": [{"hex": "fa0001", "flight": "SWA439", "t": "B38M", "alt_baro": 36000, "gs": 478, "track": 62, "lat": 39.21, "lon": -97.83, "category": "A3", "seen": 0.4}, {"hex": "fa0002", "flight": "UAL88", "t": "B789", "alt_baro": 39000, "gs": 512, "track": 215, "lat": 39.31, "lon": -98.2, "category": "A5", "seen": 1.1}, {"hex": "fa0009", "flight": "EDV5012", "t": "CRJ9", "alt_baro": 21000, "gs": 390, "track": 40, "lat": 39.4, "lon": -98.1, "category": "A3", "seen": 1.0}, {"hex": "fa0003", "flight": "N0FAKE1", "t": "C172", "alt_baro": 1500, "baro_rate": 700, "gs": 92, "track": 270, "lat": 39.012, "lon": -98.01, "category": "A1", "seen": 0.2}, {"hex": "fa0004", "flight": "N0FAKE2", "t": "PA28", "alt_baro": 2200, "gs": 101, "track": 95, "lat": 39.03, "lon": -97.97, "category": "A1", "seen": 0.6}, {"hex": "fa0005", "flight": "N0FAKE3", "t": "BE58", "alt_baro": 3100, "gs": 160, "track": 180, "lat": 38.985, "lon": -98.03, "category": "A1", "seen": 2.0}, {"hex": "fa0006", "flight": "N0HELO", "t": "R44", "alt_baro": 900, "gs": 95, "track": 330, "lat": 39.05, "lon": -98.05, "category": "A7", "seen": 0.9}, {"hex": "fa0007", "flight": "EJA412", "t": "C68A", "alt_baro": 8500, "gs": 250, "track": 140, "lat": 39.08, "lon": -97.9, "category": "A2", "seen": 1.4}]};
@@ -674,10 +921,12 @@ function renderStats(S,interesting,nowS,meta){
       `<div class="st-row mono"><span>${i+1}. ${esc(t)}</span><i style="width:${Math.max(4,n/max*100)}%"></i><b>${n}</b></div>`).join(''):'<div class="desc">Collecting…</div>'}</div>${spark(meta&&meta.samples)}`;
   document.getElementById('count').textContent=`${week.length} day${week.length===1?'':'s'} of stats · ${meta&&meta.src==='logger'?'receiver logger':'this browser'}`;
 }
-function rotView(){            // live | week | stats | heat
-  const v=QS.get('view'); if(['week','stats','live','heat'].includes(v)) return v; if(!CYCLE_S) return 'live';
-  const p=(Date.now()/1000)%CYCLE_S; if(p<WEEK_S) return 'week'; if(p<2*WEEK_S&&CYCLE_S>=3*WEEK_S) return 'stats';
-  if(HEAT_ON&&p<3*WEEK_S&&CYCLE_S>=4*WEEK_S) return 'heat'; return 'live';
+function rotView(){            // live | week | stats | heat | cards | poster | posters
+  const v=QS.get('view'); if(['week','stats','live','heat','cards','poster','posters'].includes(v)) return v; if(!CYCLE_S) return 'live';
+  const slots=['week']; if(CYCLE_S>=3*WEEK_S) slots.push('stats');
+  if(HEAT_ON&&CYCLE_S>=(slots.length+2)*WEEK_S) slots.push('heat');
+  if(CARDS_ON&&CYCLE_S>=(slots.length+2)*WEEK_S) slots.push('cards');
+  const i=Math.floor(((Date.now()/1000)%CYCLE_S)/WEEK_S); return slots[i]||'live';
 }
 
 /* ---------- Logger stats (ot/stats.json), receiver health, heat map ----------
@@ -743,8 +992,8 @@ function DEMO_HEAT(){             // synthetic: three airways + an approach fan,
 
 /* ---------- Airframe photos (Planespotters.net public photo API) ----------
    Terms: photographer credit next to the image, thumbnail links to the photo page (plain anchor), URLs unchanged,
-   JSON cached <= 24 h, images never stored. Featured live card only; off in e-ink mode or with ?photos=0. */
-const PHOTOS_ON=!CFG.eink&&!/^(0|false|off|no)$/i.test(String(QS.get('photos')??((window.OVERHEAD_CONFIG||{}).photos??true)));
+   JSON cached <= 24 h, images never stored. Featured live card only; off by default; on with ?photos=1 or OVERHEAD_CONFIG.photos=true; never in e-ink mode. */
+const PHOTOS_ON=!CFG.eink&&/^(1|true|on|yes)$/i.test(String(QS.get('photos')??((window.OVERHEAD_CONFIG||{}).photos??false)));
 const PH_KEY='photos:v1', PH_TTL=86400, PH_FAIL_TTL=6*3600, PH_API='https://api.planespotters.net/pub/photos/hex/';
 let PH={}; try{ PH=JSON.parse(localStorage.getItem(PH_KEY))||{}; }catch(e){}
 const phPending=new Set();
@@ -841,7 +1090,11 @@ async function getJSON(u){ const r=await fetch(u,{cache:'no-store'}); if(!r.ok) 
     if(MAP_ON) MAPDATA=demoMap(rx);
     (ac.aircraft||[]).forEach(a=>{ if(!a.route&&DEMO_ROUTES[(a.flight||'').trim()]) a.route=DEMO_ROUTES[(a.flight||'').trim()]; });
     if(QS.has("night")) applyNight(rx, (ac.now||Date.now()/1000)*1000);   // demo: only when asked
-    const v=rotView(), dn=ac.now||Date.now()/1000; soundInit();
+    const v=rotView(), dn=ac.now||Date.now()/1000; soundInit(); radioInit();
+    const HC=DEMO_COLLECTION(dn);
+    if(v==='cards') return renderCards(HC,dn);
+    if(v==='poster') return renderPoster('ot/',QS.get('poster'),true);
+    if(v==='posters') return renderPosters('ot/',true);
     if(v==='heat') return renderHeat(DEMO_HEAT());
     if(v==='stats'){ const L=QS.get('statsSrc')==='browser'?null:demoLoggerStats(dn);
       if(QS.has('quiet')&&L) L.meta.health.state='quiet';
@@ -849,6 +1102,8 @@ async function getJSON(u){ const r=await fetch(u,{cache:'no-store'}); if(!r.ok) 
       return L?renderStats(L.S,DEMO_INTERESTING.aircraft,dn,L.meta):renderStats(DEMO_STATS(dn), DEMO_INTERESTING.aircraft, dn); }
     if(v==='week') return renderWeek(DEMO_INTERESTING.aircraft, DEMO_INTERESTING.now);
     render(ac, rx); renderRecent(DEMO_INTERESTING.aircraft, DEMO_INTERESTING.now);
+    if(QS.has('newcard')||CARDS_ON) newCardBanner(HC,dn);
+    if(RADIO_ON) radioTick(ac.aircraft,LAST.home,dn*1000);
     if(QS.has('quiet')) setHealth({src:'logger',now:dn,health:{state:'quiet',updated:dn}},dn); return;
   }
   // 3) Standalone (served from the Pi, embedded via Tesserae's Webpage widget)
@@ -873,13 +1128,19 @@ async function getJSON(u){ const r=await fetch(u,{cache:'no-store'}); if(!r.ok) 
     setHealth(meta,nowS);
     applyNight(home, nowS*1000);
     const v=rotView();
-    if(v==='heat'){ let H=null; try{ H=await getJSON(ob+'heat.json'); }catch(e){} renderHeat(H); }
+    let HC=null; if(CARDS_ON||v==='cards'){ try{ HC=hangarDoc(await getJSON(ob+'collection.json'),nowS,'logger'); }catch(e){} }
+    const HL=(CARDS_ON||v==='cards')&&home?hangarLocal(live,home,nowS):null; if(!HC) HC=HL;
+    if(v==='cards') renderCards(HC,nowS);
+    else if(v==='poster') await renderPoster(ob,QS.get('poster'),false);
+    else if(v==='posters') await renderPosters(ob,false);
+    else if(v==='heat'){ let H=null; try{ H=await getJSON(ob+'heat.json'); }catch(e){} renderHeat(H); }
     else if(v==='stats') renderStats(S,week,nowS,meta); else if(v==='week') renderWeek(week,nowS);
-    else { render(data, rx); renderRecent(week,nowS); }
-    chimeCheck(live);
+    else { render(data, rx); renderRecent(week,nowS); if(CARDS_ON) newCardBanner(HC,nowS); }
+    if(v!=='live'){ const b=document.getElementById('newcard'); if(b) b.remove(); }
+    chimeCheck(live); radioTick(live,home,nowS*1000);
     rtRedraw=()=>{ if(rotView()==='live'&&LAST) render(LAST.data,LAST.rx); };
   }
-  soundInit();
+  soundInit(); radioInit();
   if(MAP_ON){ try{ OUTLINE=parseOutline(await getJSON(url.replace(/aircraft\.json(\?.*)?$/, 'outline.json'))); }catch(e){} }
   await tick(true);
   async function mapTry(){

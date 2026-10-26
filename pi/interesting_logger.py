@@ -106,6 +106,7 @@ def selftest():
     ok &= good
     print("PASS" if good else "FAIL", "ntfy: 1 alert per aircraft per 6h, Rare type not alerted")
     ok &= selftest_tracker()
+    ok &= selftest_collection()
     print("selftest", "OK" if ok else "FAILED")
     return ok
 
@@ -272,6 +273,143 @@ class Tracker:
         save_json(self.state_p, {"days": self.days, "samples": self.samples, "health": self.health,
                                  "heat": self.heat, "heat_t": self.heat_t})
 
+# ---------- Hangar: trading-card collection (ot/collection.json) ----------
+# First time each TYPE and each tail is seen, pass count, first/last seen and best (closest) pass distance.
+# No positions are stored. Rarity = built-in lists + local frequency (distinct tails of that type).
+LEGENDARY = re.compile(r"^(V22|H47|CH47|B52|U2|E4|E4B|E6|VC25|A124|AN124|A225|AN22|B1|B1B|B2|E3TF|E3CF|R135|E8|C5M|SR71|BLCF|A3ST|A337|B742|CONI|B17|B29|DC3|C47|SPIT|P51|CORS|ZEP)$")
+EPIC_T = re.compile(r"^(F16|F15|F18|FA18|F35|F22|F14|A10|T38|T7|T6|T45|C130|C30J|C17|KC10|K35R|KC46|K46|P8|E2|C2|C27J|A400|EUFI|RFAL)$")
+CHECKLIST = sorted(COMMON | set("""V22 H47 B52 U2 E4B E6 VC25 A124 A225 B1 B2 E3TF R135 C5M C17 C130 C30J K35R KC46 P8 F16 F18 F35 A10 T38
+H60 UH60 R22 R44 R66 EC35 EC45 A109 A139 B06 B407 S76 DHC2 DHC6 C82R B744 B748 A388 A346 MD11 DC10 B722""".split()))
+PASS_GAP_S, TAIL_CAP = 1800, 6000
+
+def rarity(t, n_tails, mil=False, rotor=False):
+    t = (t or "").upper()
+    if t and LEGENDARY.match(t): return "Legendary"
+    if mil or rotor or (t and EPIC_T.match(t)): return "Epic"
+    if n_tails >= 25: return "Common"
+    if t in COMMON: return "Common" if n_tails >= 8 else "Uncommon"
+    return "Uncommon" if n_tails >= 8 else "Rare"
+
+class Collection:
+    def __init__(self, path, home=None, persist=True):
+        self.path, self.home, self.persist = path, home, persist
+        c = load_json(path, {}) if persist else {}
+        self.types, self.tails, self.unlocks = c.get("types", {}), c.get("tails", {}), c.get("unlocks", [])
+
+    def update(self, data, now):
+        new = []
+        for a in data.get("aircraft", []):
+            hx, t = a.get("hex"), (a.get("t") or "").upper().strip()
+            if not hx or (a.get("seen") or 0) > 60 or not t: continue
+            d = dist_km(self.home, a) if (a.get("seen_pos") or 99) <= 60 else None
+            mil, rot = bool((a.get("dbFlags") or 0) & 1), is_rotor(a)
+            T = self.types.get(t)
+            if T is None:
+                T = self.types[t] = {"first": int(now), "last": int(now), "n": 0, "tails": 0, "best_km": None,
+                                     "mil": mil, "rotor": rot, "desc": (a.get("desc") or "")[:40]}
+                new.append(("type", t))
+            L = self.tails.get(hx)
+            if L is None:
+                L = self.tails[hx] = {"t": t, "first": int(now), "last": 0, "n": 0, "best_km": None}
+                T["tails"] += 1
+            if a.get("r"): L["r"] = a["r"]
+            if now - L["last"] > PASS_GAP_S: L["n"] += 1; T["n"] += 1   # a new pass
+            L["last"] = T["last"] = int(now); T["mil"] = T["mil"] or mil; T["rotor"] = T["rotor"] or rot
+            if d is not None and d < 700:
+                if L["best_km"] is None or d < L["best_km"]: L["best_km"] = round(d, 2)
+                if T["best_km"] is None or d < T["best_km"]: T["best_km"] = round(d, 2); T["best_id"] = (a.get("flight") or "").strip() or a.get("r") or hx
+        for kind, t in new:
+            T = self.types[t]
+            self.unlocks.append({"t": t, "at": int(now), "rarity": rarity(t, T["tails"], T["mil"], T["rotor"])})
+        self.unlocks = self.unlocks[-30:]
+        if len(self.tails) > TAIL_CAP:
+            self.tails = dict(sorted(self.tails.items(), key=lambda kv: -kv[1]["last"])[:TAIL_CAP])
+        return [t for _, t in new]
+
+    def doc(self, now):
+        types = {}
+        for t, T in self.types.items():
+            types[t] = dict(T, rarity=rarity(t, T["tails"], T["mil"], T["rotor"]))
+        got = sum(1 for t in types if t in CHECKLIST)
+        return {"now": int(now), "version": 1, "dist_unit": "km",
+                "note": "types/tails first seen, pass counts and closest-pass distance only; no positions",
+                "checklist": len(CHECKLIST), "checklist_got": got, "types": types,
+                "tails": {h: L for h, L in self.tails.items()}, "unlocks": self.unlocks}
+
+    def save(self, now):
+        if self.persist: save_json(self.path, self.doc(now))
+
+# ---------- Daily sky poster: relative tracks (ot/.tracks/YYYY-MM-DD.json) ----------
+# east/north offsets from the receiver in km (0.1 km), never coordinates. pi/overhead-poster.py renders them.
+TRACK_STEP_KM, TRACK_PTS, TRACK_HEX, TRACK_RADIUS_KM, TRACK_SAVE_S, TRACK_DAYS = 1.5, 400, 5000, 350, 300, 3
+
+class DayTracks:
+    def __init__(self, outdir, home=None, persist=True):
+        self.dir, self.home, self.persist = os.path.join(outdir, ".tracks"), home, persist
+        self.day, self.tr, self.saved = None, {}, 0
+
+    def _path(self, day): return os.path.join(self.dir, day + ".json")
+
+    def update(self, data, now, coll_types=None):
+        day = time.strftime("%Y-%m-%d", time.localtime(now))
+        if day != self.day:
+            if self.day: self.save(now, force=True)
+            self.day = day
+            self.tr = load_json(self._path(day), {}).get("tracks", {}) if self.persist else {}
+        for a in data.get("aircraft", []):
+            hx = a.get("hex")
+            if not hx or (a.get("seen_pos") or 99) > 60: continue
+            o = offset_km(self.home, a)
+            if not o or math.hypot(*o) > TRACK_RADIUS_KM: continue
+            x, y = round(o[0], 1), round(o[1], 1)
+            e = self.tr.get(hx)
+            if e is None:
+                if len(self.tr) >= TRACK_HEX: continue
+                t = (a.get("t") or "").upper()
+                e = self.tr[hx] = {"t": t, "id": (a.get("flight") or "").strip() or a.get("r") or "", "p": [],
+                                   "mil": bool((a.get("dbFlags") or 0) & 1), "rotor": is_rotor(a), "dmin": None, "amax": 0}
+            if not e["id"]: e["id"] = (a.get("flight") or "").strip() or a.get("r") or ""
+            d = math.hypot(x, y); e["dmin"] = round(d, 1) if e["dmin"] is None else min(e["dmin"], round(d, 1))
+            e["amax"] = max(e["amax"], alt(a) if isinstance(alt(a), (int, float)) else 0)
+            p = e["p"]
+            if (not p or math.hypot(x - p[-1][0], y - p[-1][1]) >= TRACK_STEP_KM) and len(p) < TRACK_PTS: p.append([x, y])
+        self.save(now)
+
+    def save(self, now, force=False):
+        if not self.persist or not self.day or (not force and now - self.saved < TRACK_SAVE_S): return
+        os.makedirs(self.dir, exist_ok=True)
+        save_json(self._path(self.day), {"date": self.day, "now": int(now), "unit": "km",
+                  "note": "east,north offsets from the receiver; no coordinates", "tracks": self.tr})
+        self.saved = now
+        for f in sorted(os.listdir(self.dir))[:-TRACK_DAYS]:
+            if f.endswith(".json"):
+                try: os.remove(os.path.join(self.dir, f))
+                except OSError: pass
+
+def selftest_collection():
+    ok = True; home = (40.0, -100.0); t0 = 1_800_000_000
+    C = Collection("/nonexistent", home=home, persist=False)
+    mk = lambda hx, t, dlat, **k: dict({"hex": hx, "t": t, "lat": 40.0 + dlat, "lon": -100.0, "seen": 1, "seen_pos": 1}, **k)
+    n1 = C.update({"aircraft": [mk("c1", "C172", .2), mk("c2", "C172", .1), mk("v1", "V22", .5, dbFlags=1), mk("h1", "R44", .05, category="A7")]}, t0)
+    n2 = C.update({"aircraft": [mk("c1", "C172", .05)]}, t0 + 60)          # same pass, closer
+    n3 = C.update({"aircraft": [mk("c1", "C172", .3)]}, t0 + 3600)         # new pass
+    d = C.doc(t0 + 3600); T = d["types"]
+    g = sorted(n1) == ["C172", "R44", "V22"] and n2 == [] and n3 == [] and T["C172"]["tails"] == 2 and T["C172"]["n"] == 3 \
+        and d["tails"]["c1"]["n"] == 2 and abs(d["tails"]["c1"]["best_km"] - 5.56) < .1 and T["V22"]["rarity"] == "Legendary" \
+        and T["R44"]["rarity"] == "Epic" and T["C172"]["rarity"] == "Uncommon" and len(d["unlocks"]) == 3 \
+        and d["checklist"] >= 120 and d["checklist_got"] == 3 and '"lat"' not in json.dumps(d) and '"lon"' not in json.dumps(d)
+    print("PASS" if g else "FAIL", "collection: first-seen types/tails, passes, best pass, rarity, no positions", T["C172"], d["checklist"]); ok &= g
+    g = rarity("C172", 30) == "Common" and rarity("DHC2", 1) == "Rare" and rarity("DHC2", 9) == "Uncommon" and rarity("B52", 0) == "Legendary" \
+        and rarity("B738", 3, mil=True) == "Epic"
+    print("PASS" if g else "FAIL", "rarity tiers"); ok &= g
+    D = DayTracks("/nonexistent", home=home, persist=False)
+    for i in range(20): D.update({"aircraft": [mk("p1", "B738", -0.5 + i * 0.05, flight="TST1")]}, t0 + i * 30)
+    e = D.tr["p1"]; js = json.dumps(D.tr)
+    g = 5 <= len(e["p"]) <= 20 and all(abs(x) < 400 and abs(y) < 400 for x, y in e["p"]) and "40.0" not in js and "-100" not in js \
+        and e["id"] == "TST1" and e["dmin"] < 3
+    print("PASS" if g else "FAIL", "tracks: relative km offsets only, thinned", len(e["p"]), e["p"][:2]); ok &= g
+    return ok
+
 def receiver_home(src):
     """lat/lon from receiver.json next to aircraft.json (never written anywhere by this script)."""
     try:
@@ -317,7 +455,7 @@ def selftest_tracker():
     print("PASS" if g else "FAIL", "heat: relative 1 km cells, no coordinates, 7-day half-life", sorted(cells)[:3], w0, w1); ok &= g
     return ok
 
-def poll(src, out, max_seen, alerts=None, tracker=None):
+def poll(src, out, max_seen, alerts=None, tracker=None, extras=()):
     data = fetch(src); now = data.get("now") or time.time()
     day = time.strftime("%Y-%m-%d", time.gmtime(now))
     log = [e for e in load(out) if e.get("last", 0) > now - 7 * 86400]
@@ -343,6 +481,11 @@ def poll(src, out, max_seen, alerts=None, tracker=None):
     if tracker:
         try: tracker.update(data, now); tracker.save(now)
         except Exception as ex: print(f"stats failed: {ex}", file=sys.stderr)
+    for x in extras:
+        try:
+            x.update(data, now)
+            if isinstance(x, Collection): x.save(now)
+        except Exception as ex: print(f"{type(x).__name__} failed: {ex}", file=sys.stderr)
     return len(log)
 
 def main():
@@ -362,6 +505,8 @@ def main():
                    help="alert 'receiver quiet' after this long with 0 aircraft or a low message rate")
     p.add_argument("--min-rate", type=float, default=float(os.environ.get("MIN_MSG_RATE") or 1.0),
                    help="messages/s below which the receiver counts as quiet")
+    p.add_argument("--no-collection", action="store_true", help="don't write collection.json (Hangar cards)")
+    p.add_argument("--no-tracks", action="store_true", help="don't keep relative day tracks for the sky poster")
     p.add_argument("--heat-cell-km", type=float, default=1.0)
     p.add_argument("--selftest", action="store_true", help="run built-in checks and exit")
     o = p.parse_args()
@@ -374,9 +519,14 @@ def main():
         notify = (lambda t, b: ntfy_text(o.ntfy_server, topic, "Overhead: " + t, b)) if topic else None
         tracker = Tracker(os.path.dirname(os.path.abspath(o.out)), home=receiver_home(o.src), quiet_min=o.quiet_minutes,
                           min_rate=o.min_rate, cell_km=o.heat_cell_km, notify=notify)
+    od = os.path.dirname(os.path.abspath(o.out)); extras = []
+    if not o.no_collection: extras.append(Collection(os.path.join(od, "collection.json"), home=tracker.home if tracker else receiver_home(o.src)))
+    if not o.no_tracks: extras.append(DayTracks(od, home=tracker.home if tracker else receiver_home(o.src)))
     while True:
         if tracker and tracker.home is None: tracker.home = receiver_home(o.src)
-        try: n = poll(o.src, o.out, o.max_seen, alerts, tracker)
+        for x in extras:
+            if x.home is None: x.home = tracker.home if tracker else receiver_home(o.src)
+        try: n = poll(o.src, o.out, o.max_seen, alerts, tracker, extras)
         except Exception as ex: print(f"poll failed: {ex}", file=sys.stderr); n = None
         if o.once: sys.exit(0 if n is not None else 1)
         time.sleep(o.interval)

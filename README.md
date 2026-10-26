@@ -81,11 +81,49 @@ All three are written atomically (temp file + rename) and stay bounded in size. 
 
 ## Airframe photos
 
-The featured live card shows a small photo from [Planespotters.net](https://www.planespotters.net/photo/api) with the photographer credit and a link to the photo page, per their API terms (lookups cached up to 24 h, images never stored). Off in e-ink mode; `?photos=0` turns it off.
+The featured live card shows a small photo from [Planespotters.net](https://www.planespotters.net/photo/api) with the photographer credit and a link to the photo page, per their API terms (lookups cached up to 24 h, images never stored). **Off by default.** Turn it on with `?photos=1` or `photos: true` in `OVERHEAD_CONFIG`; `?photos=0` always forces it off. Never shown in e-ink mode.
 
 ## Sound
 
 `?sound=1` plays a short synthesized chime (no audio files) when an Emergency, Medevac, Military or rotorcraft contact is in view, at most once per aircraft per 30 minutes. Browsers, and iOS especially, keep audio locked until you tap the page, so a "tap to enable sound" button shows until then. Off by default.
+
+## Hangar (plane trading cards)
+
+`?view=cards` shows your collection: one card per aircraft type ever seen, with its line drawing, type code, rarity badge, first-spotted date, sightings (passes 30+ min apart), distinct tails and closest pass. `?cards=1` adds the Hangar to the rotation and shows a **NEW CARD!** banner on the live view for 30 minutes after a new type turns up. The top bar shows types, tails, progress against a built-in checklist of ~180 types, and a count per tier. With more than 9 cards the grid pages by itself (`?page=N` pins one).
+
+Rarity runs Common → Uncommon → Rare → Epic → Legendary:
+- **Legendary** comes from a fixed list: V-22, Chinook, B-52, U-2, E-4/E-6, VC-25, An-124/225, Beluga, warbirds and others.
+- **Epic** covers any military or rotorcraft type plus a list of fighters, tankers and transports.
+- Everything else depends on how often you see it. A type with 25+ distinct tails is Common. Types on the common GA/airliner list are Common at 8+ tails. Any other type is Uncommon at 8+ tails, otherwise Rare.
+
+Rare and above get line-hatching "holo" (one direction for Rare, crosshatch for Epic, triple for Legendary), which stays pure black and white on e-ink.
+
+The Pi logger keeps `ot/collection.json`. It holds only types, tails (registrations, which are public aircraft data), counts, dates and the closest-pass distance. No positions. Without it the page keeps a smaller collection in this browser's localStorage. Turn the logger part off with `--no-collection`.
+
+## Sky radio
+
+`?radio=1` turns the sky into slow ambient music, synthesized live with WebAudio (no audio files). It is off by default, and browsers (iOS especially) need one tap: a "tap to tune in" pill shows until then, then "ON AIR · N voices". Each of the nearest 10 aircraft is a voice:
+- **Pitch** follows altitude on a pentatonic scale.
+- **Volume** follows distance (silent past 80 nm).
+- **Pan** follows bearing and drifts slowly.
+- **Timbre** depends on the kind of aircraft:
+  - GA and props: soft sine plucks.
+  - Jets: long airy pads.
+  - Helicopters: a low rumble pulsed at a rotor-ish rate (slower for a Chinook).
+  - Military: a mellow brass swell.
+
+Notes fall on a slow 0.8 s clock, each voice on its own period. `?vol=0..1` (or 0–100) sets master volume (default 0.6). After dark (sunset to sunrise at the receiver) the radio fades out over about a minute; `?radio=night` keeps it playing. Always off with `eink=1`. `sample-sky-radio.wav` is 20 s of the demo sky, rendered offline.
+
+## Daily sky poster
+
+`pi/overhead-poster.py` runs nightly at 23:55 (`overhead-poster.timer`) and draws that day's flight tracks as thin line art on cream paper:
+- Rarer types get heavier lines.
+- The bottom strip shows the day's best sightings, drawn with the page's own drawings.
+- The title is the date, with a stats line under it.
+
+There's no map, no place names and no coordinates. The logger stores tracks only as east/north offsets in km from the receiver (`ot/.tracks/`, kept 3 days), and the poster is fitted to the tracks' own extent. Posters go to `ot/posters/YYYY-MM-DD.svg` with an `index.json`, and 365 days are kept. Stdlib only. `--demo --out x.svg` draws a synthetic day, `--selftest` checks it.
+
+`?view=poster` shows the latest poster (`&poster=YYYY-MM-DD` for a given day). `?view=posters` is the archive grid; tap a thumbnail to open it. In `eink=1` the poster turns black on white.
 
 ## Notes
 
@@ -117,9 +155,12 @@ Previews: `preview-800x480.png`, `preview-1200x1600.png`, `preview-1872x1404.png
 | `map=0` / `mapNm=N` / `overpass=URL` | on / 25 / public | Background OSM line map |
 | `cycle=N` | 120 | Seconds per live/weekly cycle; `cycle=0` never shows the weekly page |
 | `weekSecs=N` | 20 | Seconds the weekly page shows in each cycle |
-| `view=week` / `live` / `stats` / `heat` | | Pin one view (screenshots) |
+| `view=week` / `live` / `stats` / `heat` / `cards` / `poster` / `posters` | | Pin one view (screenshots) |
+| `cards=1` / `page=N` | off | Hangar in the rotation + NEW CARD banner / pin a page of cards or posters |
+| `poster=YYYY-MM-DD` | latest | Which poster `view=poster` shows |
+| `radio=1` / `radio=night` / `vol=0..1` | off / / 0.6 | Sky radio / keep playing after dark / master volume |
 | `heat=1` / `heatKm=N` | off / 120 | Add the heat map to the rotation (needs `cycle` ≥ 4 × `weekSecs`) / its radius in km |
-| `photos=0` | on | Hide the Planespotters.net photo (always off with `eink=1`) |
+| `photos=1` / `photos=0` | off | Show / force off the Planespotters.net photo (always off with `eink=1`) |
 | `sound=1` | off | Chime for Emergency / Medevac / Military / rotorcraft, once per aircraft per 30 min |
 | `interesting=URL` | auto | Logger output location (tries `data/interesting.json`, then `interesting.json` next to the page) |
 | `units=aero\|imperial\|metric` | `aero` | aero: kt / ft (FL above `upHighFt`) / nm · imperial: mph / ft / mi · metric: km/h / m / km |
@@ -148,7 +189,8 @@ window.OVERHEAD_CONFIG = {
   units:          'aero',                 // 'aero' | 'imperial' | 'metric'
   eink:           false,
   refresh:        0,                      // seconds; 0 = render once (eink defaults to 60)
-  recent:         true                    // "Recently seen" strip
+  recent:         true,                   // "Recently seen" strip
+  photos:         false                   // Planespotters.net photo; off by default (?photos=1 / ?photos=0 override)
 };
 </script>
 ```

@@ -28,6 +28,12 @@ if [ -z "${NO_LOGGER:-}" ]; then
   get pi/overhead-digest.service /etc/systemd/system/overhead-digest.service
   get pi/overhead-digest.timer /etc/systemd/system/overhead-digest.timer
   [ "$PAGE_DIR" = /usr/local/share/tar1090/html ] || sed -i "s|/usr/local/share/tar1090/html/ot|$PAGE_DIR/ot|" /etc/systemd/system/overhead-digest.service
+  echo "== nightly sky poster (23:55, ot/posters/)"
+  get pi/overhead-poster.py /usr/local/bin/overhead-poster.py; chmod 0755 /usr/local/bin/overhead-poster.py
+  python3 /usr/local/bin/overhead-poster.py --selftest --dir "$PAGE_DIR/ot" >/dev/null
+  get pi/overhead-poster.service /etc/systemd/system/overhead-poster.service
+  get pi/overhead-poster.timer /etc/systemd/system/overhead-poster.timer
+  [ "$PAGE_DIR" = /usr/local/share/tar1090/html ] || sed -i "s|/usr/local/share/tar1090/html/ot|$PAGE_DIR/ot|" /etc/systemd/system/overhead-poster.service
 fi
 if [ -z "${NO_TIMER:-}" ]; then
   echo "== nightly updater"
@@ -37,7 +43,7 @@ if [ -z "${NO_TIMER:-}" ]; then
   [ -f /etc/default/overhead-update ] || printf 'REPO_RAW=%s\nPAGE_DIR=%s\n' "$REPO_RAW" "$PAGE_DIR" > /etc/default/overhead-update
 fi
 systemctl daemon-reload
-[ -z "${NO_LOGGER:-}" ] && systemctl enable --now interesting-logger.service overhead-digest.timer
+[ -z "${NO_LOGGER:-}" ] && systemctl enable --now interesting-logger.service overhead-digest.timer overhead-poster.timer
 [ -z "${NO_TIMER:-}" ] && systemctl enable --now overhead-update.timer
 IP=$(hostname -I 2>/dev/null | cut -d' ' -f1)
 echo "done: open http://${IP:-<pi>}/tar1090/overhead.html"

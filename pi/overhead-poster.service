@@ -1,0 +1,7 @@
+[Unit]
+Description=Overhead daily sky poster (SVG)
+
+[Service]
+Type=oneshot
+User=www-data
+ExecStart=/usr/bin/python3 /usr/local/bin/overhead-poster.py --dir /usr/local/share/tar1090/html/ot
