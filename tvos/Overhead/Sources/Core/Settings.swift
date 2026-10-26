@@ -9,6 +9,7 @@ struct OverheadSettings: Equatable {
     var units = "aero"          // aero | imperial | metric
     var mapNm = 25.0
     var routes = true           // adsbdb.com callsign -> route lookup
+    var reveal = true           // full-screen card flip when a new type is unlocked
     var pollSeconds = 1.0
 
     /// Base like "http://adsb.local" (scheme added if missing, trailing slash dropped).
@@ -35,11 +36,12 @@ struct OverheadSettings: Equatable {
         if let v = d.string(forKey: "units") { s.units = v }
         if d.object(forKey: "mapNm") != nil { s.mapNm = max(5, d.double(forKey: "mapNm")) }
         if d.object(forKey: "routes") != nil { s.routes = d.bool(forKey: "routes") }
+        if d.object(forKey: "reveal") != nil { s.reveal = d.bool(forKey: "reveal") }
         return s
     }
     func save(_ d: UserDefaults = .standard) {
         d.set(host, forKey: "host"); d.set(demo, forKey: "demo"); d.set(night, forKey: "night")
-        d.set(units, forKey: "units"); d.set(mapNm, forKey: "mapNm"); d.set(routes, forKey: "routes")
+        d.set(units, forKey: "units"); d.set(mapNm, forKey: "mapNm"); d.set(routes, forKey: "routes"); d.set(reveal, forKey: "reveal")
     }
 
     func speed(_ kt: Double?) -> String {

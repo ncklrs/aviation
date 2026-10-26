@@ -61,3 +61,6 @@ LinuxCheck/              `bash LinuxCheck/run.sh` – compiles Core with swiftc 
 - There's no app icon yet. Xcode warns about this, and you'll need one for TestFlight or the App Store (tvOS uses layered "App Icon & Top Shelf Image" brand assets).
 - If your Pi serves the logger files somewhere other than `/ot/` or `/tar1090/ot/`, the Hangar and Poster screens show their empty states.
 - Posters are drawn by a small SVG subset renderer (rect/line/path/text/g). If you add other elements to the poster, they won't be drawn.
+
+## New-card reveal
+When the logger reports a newly unlocked aircraft type (same trigger as the web page's NEW CARD banner), a full-screen card flips in (rotation3DEffect, ~1.2 s), lands with a holo shine, a tier-coloured glow and particles, holds ~6 s, then shrinks toward the corner. Up to 5 reveals are queued, at most 3 per poll; unlocks older than 30 min aren't replayed. The trigger rule lives in `Core/Reveal.swift` and is checked against `tools/reveal_cases.json` by `LinuxCheck` (the same cases as `tools/test_reveal.js`). Settings: "New-card reveal animation" toggle and "Preview new-card reveal". Reduce Motion gives a static card. Play/Pause dismisses it. Demo mode shows one reveal per launch.

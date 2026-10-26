@@ -23,6 +23,9 @@ final class AppModel: ObservableObject {
     @Published var focusIndex = 0
     @Published var cardsPage = 0
     @Published var showSettings = false
+    @Published var reveal: RevealItem?
+    private var revealQueue: [RevealItem] = []
+    private var demoRevealed = false
 
     let art: [String: ShapeArt]
     let scale: [String: Double]
@@ -101,7 +104,7 @@ final class AppModel: ObservableObject {
             guard let u = URL(string: b + "interesting.json"), let d = try? await fetch(u),
                   let f = try? JSONDecoder().decode(InterestingFile.self, from: d) else { continue }
             interesting = f.aircraft.sorted { ($0.last ?? 0) > ($1.last ?? 0) }
-            if let u = URL(string: b + "collection.json"), let d = try? await fetch(u) { hangar = try? JSONDecoder().decode(HangarFile.self, from: d) }
+            if let u = URL(string: b + "collection.json"), let d = try? await fetch(u) { hangar = try? JSONDecoder().decode(HangarFile.self, from: d); checkReveal() }
             if let u = URL(string: b + "posters/index.json"), let d = try? await fetch(u),
                let p = try? JSONDecoder().decode(PosterIndex.self, from: d) { posters = p.posters.sorted { $0.date > $1.date } }
             otBase = b; break
@@ -141,6 +144,7 @@ final class AppModel: ObservableObject {
             demoBase = res("sample-aircraft", "json").flatMap { try? JSONDecoder().decode(AircraftFile.self, from: $0) }?.aircraft ?? []
             home = OverheadSettings.demoHome; demoStart = Date()
             hangar = res("sample-collection", "json").flatMap { try? JSONDecoder().decode(HangarFile.self, from: $0) }
+            if !demoRevealed { demoRevealed = true; checkReveal(force: true) }   // demo: show one reveal per launch
             interesting = res("sample-interesting", "json").flatMap { try? JSONDecoder().decode(InterestingFile.self, from: $0) }?.aircraft ?? []
             outline = (0..<36).map { i in let b = Double(i) * 10 * .pi / 180, r = (0.6 + 0.25 * sin(Double(i) * 1.7)) * 2.6
                 return (39.0 + r * cos(b) / 1.0, -98.0 + r * sin(b) / cos(39 * .pi / 180)) }
@@ -175,4 +179,41 @@ final class AppModel: ObservableObject {
         r.scale = 2
         if let img = r.uiImage, let png = img.pngData() { try? png.write(to: url, options: .atomic); sharedPoster = true }
     }
+
+    // MARK: new-card reveal (same trigger as the web page; see Core/Reveal.swift)
+    /// Queues reveals for unlocks not shown before. `force` (demo / settings test) replays the newest unlock.
+    func checkReveal(force: Bool = false) {
+        guard settings.reveal || force, let h = hangar else { return }
+        var list: [HangarUnlock]
+        if force {
+            list = Array((h.unlocks ?? []).suffix(1))
+            if list.isEmpty, let k = h.types.keys.sorted().first { list = [HangarUnlock(t: k, at: Date().timeIntervalSince1970)] }
+        } else {
+            let stored = Reveal.loadSeen(); var seen = stored ?? []
+            list = Reveal.pick(h.unlocks ?? [], seen: &seen, now: Date().timeIntervalSince1970)
+            Reveal.saveSeen(seen)
+            if stored == nil { list = Array(list.suffix(1)) }          // first launch: don't replay a backlog
+        }
+        for u in list where revealQueue.count < Reveal.queueCap {
+            guard let t = h.types[u.t] else { continue }
+            let tier = t.rarity ?? Classify.rarity(u.t, tails: t.tails ?? 0, mil: t.mil ?? false, rotor: t.rotor ?? false)
+            revealQueue.append(RevealItem(code: u.t, t: t, tier: tier, total: h.types.count))
+        }
+        nextReveal()
+    }
+    var revealsWaiting: Int { revealQueue.count }
+    private func nextReveal() { guard reveal == nil, !revealQueue.isEmpty else { return }; reveal = revealQueue.removeFirst() }
+    func revealDone() {
+        reveal = nil
+        Task { try? await Task.sleep(nanoseconds: 400_000_000); nextReveal() }
+    }
+}
+
+struct RevealItem: Identifiable, Equatable {
+    let id = UUID()
+    let code: String
+    let t: HangarType
+    let tier: String
+    let total: Int
+    static func == (a: RevealItem, b: RevealItem) -> Bool { a.id == b.id }
 }

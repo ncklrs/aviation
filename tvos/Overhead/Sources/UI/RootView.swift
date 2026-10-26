@@ -25,6 +25,10 @@ struct RootView: View {
                 .offset(x: d.width, y: d.height)
                 .opacity(dimmed(tl.date) ? 0.35 : 1)
                 .animation(.easeInOut(duration: 4), value: d)
+                if let r = model.reveal {
+                    RevealOverlay(item: r, waiting: model.revealsWaiting) { model.revealDone() }
+                        .id(r.id).transition(.opacity)
+                }
             }
         }
         .focusable()
@@ -37,7 +41,7 @@ struct RootView: View {
             @unknown default: break
             }
         }
-        .onPlayPauseCommand { model.showSettings = true }
+        .onPlayPauseCommand { if model.reveal != nil { model.revealDone() } else { model.showSettings = true } }
         .onOpenURL { _ in model.screen = .live }
         .sheet(isPresented: $model.showSettings) { SettingsView().environmentObject(model) }
         .onChange(of: phase) { _, p in UIApplication.shared.isIdleTimerDisabled = (p == .active) }

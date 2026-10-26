@@ -255,3 +255,9 @@ Options: `--selftest`, `--ntfy-topic/--ntfy-server/--ntfy-tags`, `--src` (URL or
 ## Credits
 
 See `CREDITS.md`: original drawings, map data © OpenStreetMap contributors (ODbL), routes from adsbdb.com. Licensed MIT (`LICENSE`).
+
+### New-card reveal
+When a new aircraft type is unlocked (the NEW CARD banner trigger), a full-screen Pokémon-style reveal plays over any view: face-down card back → 3D spin → holo shine, rarity glow and particle burst → hold → shrink into the Hangar. It's on by default.
+- `reveal=0` turns it off. `reveal=static` (or `eink=1`, or the OS reduced-motion setting) shows a static card with no motion.
+- `demo=reveal` plays it with demo data. `revealT=V22` picks the type, `revealN=3` queues several, and `revealHold=1` keeps it on screen.
+- Queue cap is 5, at most 3 per poll; unlocks older than 30 min aren't replayed. There's a short chime when sound or radio is on.

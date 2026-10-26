@@ -55,5 +55,21 @@ check(s2.aircraftURL?.absoluteString == "http://pi.local/tar1090/data/aircraft.j
 check(Sun.isNight(Home(lat: 39, lon: -98), at: Date(timeIntervalSince1970: 1793080800)) == true, "sun: 2026-10-27 04:00Z is night at 39,-98")
 check(Sun.isNight(Home(lat: 39, lon: -98), at: Date(timeIntervalSince1970: 1793037600)) == false, "sun: 2026-10-26 18:00Z is day at 39,-98")
 
+
+// New-card reveal trigger: same cases as tools/test_reveal.js
+struct RCase: Decodable { var name: String; var now: Double; var seen: [String]; var unlocks: [HangarUnlockIn]; var want: [String] }
+struct HangarUnlockIn: Decodable { var t: String; var at: Double }
+struct RCases: Decodable { var cases: [RCase] }
+let rcPath = root + "/../tools/reveal_cases.json"
+if let d = FileManager.default.contents(atPath: rcPath), let rc = try? JSONDecoder().decode(RCases.self, from: d) {
+    for c in rc.cases {
+        var seen = c.seen
+        let got = Reveal.pick(c.unlocks.map { HangarUnlock(t: $0.t, at: $0.at) }, seen: &seen, now: c.now).map { $0.t }
+        check(got == c.want, "reveal: \(c.name) -> \(got)")
+    }
+    var s2: [String] = []; let u = [HangarUnlock(t: "V22", at: 9400)]
+    _ = Reveal.pick(u, seen: &s2, now: 10000)
+    check(Reveal.pick(u, seen: &s2, now: 10000).isEmpty, "reveal: second call is empty")
+} else { check(false, "reveal cases at \(rcPath)") }
 if bad > 0 { print("\(bad) FAIL"); exit(1) }
 print("tvOS core OK")

@@ -18,6 +18,8 @@ struct SettingsView: View {
                     Picker("Units", selection: $s.units) { Text("Aviation (kt, ft, nm)").tag("aero"); Text("Imperial").tag("imperial"); Text("Metric").tag("metric") }
                     Picker("Map radius", selection: $s.mapNm) { ForEach([10.0, 25, 50, 100], id: \.self) { Text("\(Int($0)) nm").tag($0) } }
                     Toggle("Look up routes (adsbdb.com)", isOn: $s.routes)
+                    Toggle("New-card reveal animation", isOn: $s.reveal)
+                    Button("Preview new-card reveal") { dismiss(); model.checkReveal(force: true) }
                 }
                 Section {
                     Button("Save") { model.settings = s; model.restart(); dismiss() }

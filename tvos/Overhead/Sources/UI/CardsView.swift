@@ -37,19 +37,32 @@ struct CardsView: View {
         }
     }
 
-    private func card(_ c: Card, _ th: Theme) -> some View {
+    private func card(_ c: Card, _ th: Theme) -> some View { HangarCardView(code: c.id, t: c.t, tier: c.tier) }
+}
+
+/// One trading card (Hangar grid and the full-screen reveal).
+struct HangarCardView: View {
+    @EnvironmentObject var model: AppModel
+    let code: String
+    let t: HangarType
+    let tier: String
+    var big = false
+
+    var body: some View {
+        let th = model.night ? Theme.night : Theme.day, k: CGFloat = big ? 1.9 : 1.0
+        let c = (id: code, t: t, tier: tier)
         let shape = Classify.shape(Aircraft(hex: c.id, t: c.id, desc: c.t.desc, category: (c.t.rotor ?? false) ? "A7" : "", dbFlags: (c.t.mil ?? false) ? 1 : 0))
         let marks = ["Common": "●", "Uncommon": "●●", "Rare": "★", "Epic": "★★", "Legendary": "★★★"][c.tier] ?? ""
         let heavy = c.tier == "Epic" || c.tier == "Legendary"
         return VStack(alignment: .leading, spacing: 6) {
-            HStack { Text(c.id).font(Fonts.mono(34)).bold(); Spacer(); Text(marks).font(.system(size: 22)) }.foregroundStyle(th.ink)
-            PlaneDrawing(shape: shape, showGround: false).frame(height: 110)
-            Text(c.t.desc ?? Classify.label(shape)).font(Fonts.serif(20, italic: true)).foregroundStyle(th.mid).lineLimit(1)
-            Text(c.tier.uppercased()).font(Fonts.kicker(16)).tracking(4).foregroundStyle(th.ink)
+            HStack { Text(c.id).font(Fonts.mono(34 * k)).bold(); Spacer(); Text(marks).font(.system(size: 22 * k)) }.foregroundStyle(th.ink)
+            PlaneDrawing(shape: shape, showGround: false).frame(height: 110 * k)
+            Text(c.t.desc ?? Classify.label(shape)).font(Fonts.serif(20 * k, italic: true)).foregroundStyle(th.mid).lineLimit(1)
+            Text(c.tier.uppercased()).font(Fonts.kicker(16 * k)).tracking(4).foregroundStyle(th.ink)
             Text("\(c.t.n ?? 0) seen · \(c.t.tails ?? 0) tails" + (c.t.best_km.map { String(format: " · %.0f km", $0) } ?? ""))
-                .font(Fonts.mono(16)).foregroundStyle(th.mid)
+                .font(Fonts.mono(16 * k)).foregroundStyle(th.mid)
         }
-        .padding(16)
+        .padding(16 * k)
         .background(hatch(c.tier, th))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(th.ink, lineWidth: heavy ? 5 : 2))
     }

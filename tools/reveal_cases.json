@@ -1,0 +1,10 @@
+{"_note":"Shared new-card reveal trigger cases: tools/test_reveal.js (web) and tvos/LinuxCheck (Swift) both run these.",
+ "cases":[
+  {"name":"fresh unlock","now":10000,"seen":[],"unlocks":[{"t":"V22","at":9400}],"want":["V22"]},
+  {"name":"already seen","now":10000,"seen":["V22@9400"],"unlocks":[{"t":"V22","at":9400}],"want":[]},
+  {"name":"too old (>30 min)","now":10000,"seen":[],"unlocks":[{"t":"B52","at":8000}],"want":[]},
+  {"name":"future clock skew","now":10000,"seen":[],"unlocks":[{"t":"F16","at":10200}],"want":[]},
+  {"name":"batch cap keeps newest 3, in order","now":10000,"seen":[],"unlocks":[{"t":"A","at":9001},{"t":"B","at":9002},{"t":"C","at":9003},{"t":"D","at":9004},{"t":"E","at":9005}],"want":["C","D","E"]},
+  {"name":"unsorted input","now":10000,"seen":[],"unlocks":[{"t":"Y","at":9900},{"t":"X","at":9800}],"want":["X","Y"]},
+  {"name":"same type re-unlocked later is new","now":10000,"seen":["V22@9000"],"unlocks":[{"t":"V22","at":9000},{"t":"V22","at":9950}],"want":["V22"]}
+ ]}
